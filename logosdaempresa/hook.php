@@ -41,6 +41,7 @@ function plugin_logosdaempresa_limpar_configs(): void {
    if ($DB->tableExists($tabela)) {
       $DB->update($tabela, ['value' => ''], ['name' => 'cor_tema']);
       $DB->update($tabela, ['value' => '0'], ['name' => 'layout_lateral_ativo']);
+      $DB->update($tabela, ['value' => '0'], ['name' => 'fundo_login_ativo']);
    }
 }
 

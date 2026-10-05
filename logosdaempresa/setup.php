@@ -7,7 +7,7 @@
 
 use Glpi\Http\Firewall;
 
-define('PLUGIN_LOGOSDAEMPRESA_VERSION', '1.3.1');
+define('PLUGIN_LOGOSDAEMPRESA_VERSION', '1.4.0');
 
 function plugin_init_logosdaempresa(): void {
    global $PLUGIN_HOOKS;
@@ -83,7 +83,17 @@ function plugin_logosdaempresa_display_login(): void {
    // =====================================================================
    // Parte 3: Layout lateral da tela de login
    // =====================================================================
-   if (class_exists('PluginLogosdaempresaConfig') && PluginLogosdaempresaConfig::layoutLateralAtivo()) {
+   // =====================================================================
+   // Parte 2b: Imagem de fundo na tela inteira, formulário ao lado
+   // =====================================================================
+   $fundoAtivo = class_exists('PluginLogosdaempresaConfig')
+      && PluginLogosdaempresaConfig::fundoLoginAtivo()
+      && PluginLogosdaempresaConfig::caminhoFundoLogin() !== null;
+   if ($fundoAtivo) {
+      $css .= PluginLogosdaempresaConfig::cssFundoLogin();
+   }
+
+   if (!$fundoAtivo && class_exists('PluginLogosdaempresaConfig') && PluginLogosdaempresaConfig::layoutLateralAtivo()) {
       $imgLateral    = PluginLogosdaempresaConfig::getConfig('layout_imagem_lateral', '');
       $imgLateralUrl = '';
 

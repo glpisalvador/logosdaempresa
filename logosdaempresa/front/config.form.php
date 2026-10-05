@@ -8,6 +8,15 @@ if (!Session::haveRight('config', UPDATE)) {
    throw new \Glpi\Exception\Http\AccessDeniedHttpException();
 }
 
+// Arquivo acima do post_max_size do PHP: o POST chega vazio
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && empty($_POST) && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+   Session::addMessageAfterRedirect(
+      sprintf(__('O arquivo é maior que o permitido pelo servidor (%s).', 'logosdaempresa'), ini_get('post_max_size')),
+      false,
+      ERROR
+   );
+}
+
 if (isset($_POST['save_action'])) {
    switch ($_POST['save_action']) {
 
@@ -120,6 +129,11 @@ if (isset($_POST['save_action'])) {
       case 'toggle_layout_lateral':
          $ativoAtual = PluginLogosdaempresaConfig::layoutLateralAtivo();
          PluginLogosdaempresaConfig::setLayoutLateral(!$ativoAtual);
+         // Layout lateral e imagem de fundo são arranjos diferentes da tela: só um por vez
+         if (!$ativoAtual && PluginLogosdaempresaConfig::fundoLoginAtivo()) {
+            PluginLogosdaempresaConfig::setFundoLogin(false);
+            Session::addMessageAfterRedirect(__('A imagem de fundo da tela de login foi desativada.', 'logosdaempresa'), true, INFO);
+         }
          Session::addMessageAfterRedirect(
             $ativoAtual
                ? __('Layout lateral desativado.', 'logosdaempresa')
@@ -142,6 +156,56 @@ if (isset($_POST['save_action'])) {
                ERROR
             );
          }
+         break;
+
+      case 'upload_fundo_login':
+         $erroUpload = $_FILES['fundo_login']['error'] ?? UPLOAD_ERR_NO_FILE;
+         if ($erroUpload === UPLOAD_ERR_OK) {
+            if (PluginLogosdaempresaConfig::processarUploadFundoLogin($_FILES['fundo_login'])) {
+               // Primeira imagem enviada: já passa a valer na tela de login
+               if (!PluginLogosdaempresaConfig::fundoLoginAtivo()) {
+                  PluginLogosdaempresaConfig::setFundoLogin(true);
+                  if (PluginLogosdaempresaConfig::layoutLateralAtivo()) {
+                     PluginLogosdaempresaConfig::setLayoutLateral(false);
+                     Session::addMessageAfterRedirect(__('O layout lateral foi desativado para usar a imagem de fundo.', 'logosdaempresa'), true, INFO);
+                  }
+               }
+            }
+         } elseif (in_array($erroUpload, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+            Session::addMessageAfterRedirect(
+               sprintf(__('A imagem é maior que o permitido pelo servidor (%s). Reduza a imagem e envie de novo.', 'logosdaempresa'), ini_get('upload_max_filesize')),
+               false,
+               ERROR
+            );
+         } else {
+            Session::addMessageAfterRedirect(__('Nenhum arquivo enviado ou erro no upload.', 'logosdaempresa'), false, ERROR);
+         }
+         break;
+
+      case 'remover_fundo_login':
+         PluginLogosdaempresaConfig::removerFundoLogin();
+         break;
+
+      case 'toggle_fundo_login':
+         $ativarFundo = !PluginLogosdaempresaConfig::fundoLoginAtivo();
+         if ($ativarFundo && PluginLogosdaempresaConfig::caminhoFundoLogin() === null) {
+            Session::addMessageAfterRedirect(__('Envie uma imagem de fundo antes de ativar.', 'logosdaempresa'), false, WARNING);
+            break;
+         }
+         PluginLogosdaempresaConfig::setFundoLogin($ativarFundo);
+         if ($ativarFundo && PluginLogosdaempresaConfig::layoutLateralAtivo()) {
+            PluginLogosdaempresaConfig::setLayoutLateral(false);
+            Session::addMessageAfterRedirect(__('O layout lateral foi desativado para usar a imagem de fundo.', 'logosdaempresa'), true, INFO);
+         }
+         Session::addMessageAfterRedirect(
+            $ativarFundo ? __('Imagem de fundo ativada na tela de login.', 'logosdaempresa') : __('Imagem de fundo desativada.', 'logosdaempresa'),
+            true,
+            INFO
+         );
+         break;
+
+      case 'salvar_opcoes_fundo':
+         PluginLogosdaempresaConfig::salvarOpcoesFundoLogin($_POST);
          break;
 
       case 'remover_imagem_lateral':

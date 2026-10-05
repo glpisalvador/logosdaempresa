@@ -3,7 +3,7 @@
 /**
  * Serve as imagens enviadas na configuração (acesso público liberado no setup.php, para a tela de login):
  *  - ?logo=logo-GLPI-100-black.png  -> logo personalizado (somente os nomes de logo do GLPI)
- *  - ?arquivo=lateral_xxx.png       -> imagem lateral configurada
+ *  - ?arquivo=lateral_xxx.png       -> imagem lateral ou imagem de fundo configurada
  * Toolbox::sendFile foi removido no GLPI 12; getFileAsResponse existe no 11 e no 12.
  */
 
@@ -18,7 +18,8 @@ if (class_exists('PluginLogosdaempresaConfig')) {
       $nome = preg_replace('/[^\w\-.]+/', '', (string) $_GET['arquivo']);
       $arquivoLateral = PluginLogosdaempresaConfig::getConfig('layout_imagem_lateral', '');
       $candidato = GLPI_PLUGIN_DOC_DIR . DIRECTORY_SEPARATOR . 'logosdaempresa' . DIRECTORY_SEPARATOR . $nome;
-      if ($nome !== '' && $nome === $arquivoLateral && is_file($candidato)) {
+      $arquivoFundo   = PluginLogosdaempresaConfig::getConfig('fundo_login_imagem', '');
+      if ($nome !== '' && ($nome === $arquivoLateral || $nome === $arquivoFundo) && is_file($candidato)) {
          $caminho = $candidato;
       }
    }
