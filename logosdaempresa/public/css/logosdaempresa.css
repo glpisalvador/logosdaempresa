@@ -280,3 +280,18 @@
 .logosdaempresa-btn-restaurar-grupo:hover {
    background: rgba(220, 38, 38, 0.08);
 }
+/* Envio de uma imagem para as 3 variantes do grupo */
+.logosdaempresa-todas-variantes {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   flex-wrap: wrap;
+   padding: 10px 14px;
+   background: #f8f9fa;
+   border-bottom: 1px solid #e0e0e0;
+}
+
+.logosdaempresa-todas-variantes-dica {
+   font-size: 11px;
+   color: #6c757d;
+}

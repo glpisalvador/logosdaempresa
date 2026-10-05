@@ -346,6 +346,8 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
             $css .= "   {$variavel}: {$valor};\n";
          }
          $css .= "}\n";
+         // O GLPI desenha o logo expandido sem ajuste (imagem grande sai cortada): encaixa no espaço
+         $css .= ".glpi-logo {\n   background-size: contain !important;\n   background-position: center !important;\n   background-repeat: no-repeat !important;\n}\n";
       }
       // =====================================================================
       // Parte 2: Cor do tema
@@ -449,7 +451,50 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       return false;
    }
 
-   static function processarUpload(string $arquivo, array $dadosArquivo): bool {
+   /**
+    * Ajusta a imagem ao espaço do logo sem deformar: se passar do espaço (em 2x, para telas de alta
+    * resolução) é reduzida proporcionalmente; depois é centralizada numa tela transparente com a
+    * proporção do espaço, para caber inteira sem corte nem esticamento. Imagens pequenas não são ampliadas.
+    *
+    * @return array{0: \GdImage, 1: bool} imagem final e se houve redução
+    */
+   static function ajustarAoEspaco(\GdImage $origem, int $larguraEspaco, int $alturaEspaco): array {
+      $w = imagesx($origem);
+      $h = imagesy($origem);
+      $maxW = $larguraEspaco * 2;
+      $maxH = $alturaEspaco * 2;
+
+      $escala   = min(1, $maxW / $w, $maxH / $h);
+      $reduzida = $escala < 1;
+      $nw = max(1, (int) round($w * $escala));
+      $nh = max(1, (int) round($h * $escala));
+
+      // Tela com a proporção do espaço (sem ultrapassar o tamanho da imagem ajustada)
+      $proporcao = $larguraEspaco / $alturaEspaco;
+      if ($nw / $nh > $proporcao) {
+         $cw = $nw;
+         $ch = max($nh, (int) round($nw / $proporcao));
+      } else {
+         $ch = $nh;
+         $cw = max($nw, (int) round($nh * $proporcao));
+      }
+
+      $tela = imagecreatetruecolor($cw, $ch);
+      imagealphablending($tela, false);
+      imagesavealpha($tela, true);
+      imagefill($tela, 0, 0, imagecolorallocatealpha($tela, 0, 0, 0, 127));
+      imagealphablending($tela, true);
+      imagecopyresampled($tela, $origem, (int) (($cw - $nw) / 2), (int) (($ch - $nh) / 2), 0, 0, $nw, $nh, $w, $h);
+      imagealphablending($tela, false);
+      imagesavealpha($tela, true);
+
+      return [$tela, $reduzida];
+   }
+
+   /**
+    * @param bool $todasVariantes envia a mesma imagem para branco, preto e cinza do grupo
+    */
+   static function processarUpload(string $arquivo, array $dadosArquivo, bool $todasVariantes = false): bool {
       $grupoEncontrado = null;
       $grupoId         = null;
       foreach (self::LOGOS_MAP as $gId => $grupo) {
@@ -483,7 +528,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
 
       // Determinar lista de arquivos destino
       $arquivosDestino = [$arquivo];
-      if (!empty($grupoEncontrado['unificado']) && $grupoEncontrado['unificado'] === true) {
+      if ((!empty($grupoEncontrado['unificado']) && $grupoEncontrado['unificado'] === true) || $todasVariantes) {
          $arquivosDestino = $grupoEncontrado['arquivos'];
       }
 
@@ -509,12 +554,12 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
             );
             return false;
          }
-         // Copiar para os demais arquivos do grupo unificado
+         // Copiar para os demais arquivos (grupo unificado ou envio para todas as variantes)
          for ($i = 1; $i < count($arquivosDestino); $i++) {
             @copy($primeiroDestino, $diretorioLogos . '/' . $arquivosDestino[$i]);
          }
          Session::addMessageAfterRedirect(
-            __('Logo atualizado com sucesso (SVG).', 'logosdaempresa'),
+            __('Logo atualizado com sucesso (SVG, ajustado ao espaço automaticamente).', 'logosdaempresa'),
             true,
             INFO
          );
@@ -550,6 +595,13 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       imagealphablending($imagemOrigem, false);
       imagesavealpha($imagemOrigem, true);
 
+      // Ajusta ao espaço disponível (largura x altura do grupo)
+      $larguraOriginal = imagesx($imagemOrigem);
+      $alturaOriginal  = imagesy($imagemOrigem);
+      [$imagemFinal, $reduzida] = self::ajustarAoEspaco($imagemOrigem, (int) $grupoEncontrado['largura'], (int) $grupoEncontrado['altura']);
+      imagedestroy($imagemOrigem);
+      $imagemOrigem = $imagemFinal;
+
       // Salvar no primeiro arquivo
       $primeiroDestino = $diretorioLogos . '/' . $arquivosDestino[0];
       $resultado = imagepng($imagemOrigem, $primeiroDestino, 9);
@@ -571,11 +623,16 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
 
       imagedestroy($imagemOrigem);
 
-      Session::addMessageAfterRedirect(
-         __('Logo atualizado com sucesso.', 'logosdaempresa'),
-         true,
-         INFO
-      );
+      $mensagem = count($arquivosDestino) > 1 && empty($grupoEncontrado['unificado'])
+         ? __('Logo aplicado às variantes branco, preto e cinza.', 'logosdaempresa')
+         : __('Logo atualizado com sucesso.', 'logosdaempresa');
+      if ($reduzida) {
+         $mensagem .= ' ' . sprintf(
+            __('A imagem (%1$d x %2$d px) era maior que o espaço e foi ajustada para caber em %3$d x %4$d px.', 'logosdaempresa'),
+            $larguraOriginal, $alturaOriginal, $grupoEncontrado['largura'], $grupoEncontrado['altura']
+         );
+      }
+      Session::addMessageAfterRedirect($mensagem, true, INFO);
       return true;
    }
 
@@ -1129,6 +1186,23 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
             echo '</div>';
 
          } else {
+            // Uma imagem para as 3 variantes; depois cada variante pode receber a sua
+            echo '<div class="logosdaempresa-todas-variantes">';
+            echo '<form method="post" enctype="multipart/form-data" style="margin:0" ';
+            echo 'action="' . $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/front/config.form.php">';
+            echo '<input type="hidden" name="_glpi_csrf_token" value="' . self::tokenCsrf() . '">';
+            echo '<input type="hidden" name="save_action" value="upload_grupo">';
+            echo '<input type="hidden" name="grupo_id" value="' . htmlspecialchars($grupoId) . '">';
+            echo '<label class="logosdaempresa-btn-upload">';
+            echo '<i class="ti ti-upload"></i> Enviar para as 3 variantes';
+            echo '<input type="file" name="logo_file" accept="image/*" onchange="this.closest(\'form\').submit()" style="display:none">';
+            echo '</label>';
+            echo '</form>';
+            echo '<span class="logosdaempresa-todas-variantes-dica"><i class="ti ti-info-circle"></i> ';
+            echo 'A mesma imagem vai para branco, preto e cinza. Depois, se quiser, envie uma imagem própria em cada variante abaixo. ';
+            echo 'Imagens maiores que o espaço são ajustadas automaticamente.</span>';
+            echo '</div>';
+
             // Grupo normal: mostrar cada variante separada
             echo '<div class="logosdaempresa-variantes">';
 

@@ -44,6 +44,28 @@ if (isset($_POST['save_action'])) {
          }
          break;
 
+      case 'upload_grupo':
+         // Uma imagem para todas as variantes (branco, preto e cinza) do grupo
+         $grupoId = (string) ($_POST['grupo_id'] ?? '');
+         if (
+            isset(PluginLogosdaempresaConfig::LOGOS_MAP[$grupoId])
+            && isset($_FILES['logo_file'])
+            && $_FILES['logo_file']['error'] === UPLOAD_ERR_OK
+         ) {
+            PluginLogosdaempresaConfig::processarUpload(
+               PluginLogosdaempresaConfig::LOGOS_MAP[$grupoId]['arquivos'][0],
+               $_FILES['logo_file'],
+               true
+            );
+         } else {
+            Session::addMessageAfterRedirect(
+               __('Nenhum arquivo enviado ou erro no upload.', 'logosdaempresa'),
+               false,
+               ERROR
+            );
+         }
+         break;
+
       case 'restaurar_logo':
          if (isset($_POST['arquivo_logo'])) {
             $arquivo    = $_POST['arquivo_logo'];

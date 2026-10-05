@@ -7,7 +7,7 @@
 
 use Glpi\Http\Firewall;
 
-define('PLUGIN_LOGOSDAEMPRESA_VERSION', '1.3.0');
+define('PLUGIN_LOGOSDAEMPRESA_VERSION', '1.3.1');
 
 function plugin_init_logosdaempresa(): void {
    global $PLUGIN_HOOKS;
@@ -68,6 +68,7 @@ function plugin_logosdaempresa_display_login(): void {
          if (PluginLogosdaempresaConfig::logoFoiAlterado($arquivo)) {
             $css .= "{$seletor} {\n";
             $css .= '   content: url("' . PluginLogosdaempresaConfig::getUrlPersonalizado($arquivo) . "\") !important;\n";
+            $css .= "   object-fit: contain !important;\n";
             $css .= "}\n";
          }
       }
