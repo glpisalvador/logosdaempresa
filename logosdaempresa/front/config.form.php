@@ -186,10 +186,15 @@ if (isset($_POST['save_action'])) {
          PluginLogosdaempresaConfig::removerFundoLogin();
          break;
 
+      case 'remover_video_fundo':
+         PluginLogosdaempresaConfig::removerVideoFundo();
+         Session::addMessageAfterRedirect(__('Vídeo de fundo removido.', 'logosdaempresa'), true, INFO);
+         break;
+
       case 'toggle_fundo_login':
          $ativarFundo = !PluginLogosdaempresaConfig::fundoLoginAtivo();
-         if ($ativarFundo && PluginLogosdaempresaConfig::caminhoFundoLogin() === null) {
-            Session::addMessageAfterRedirect(__('Envie uma imagem de fundo antes de ativar.', 'logosdaempresa'), false, WARNING);
+         if ($ativarFundo && !PluginLogosdaempresaConfig::midiaFundoDisponivel()) {
+            Session::addMessageAfterRedirect(__('Envie a imagem ou o vídeo do tipo de fundo escolhido antes de ativar.', 'logosdaempresa'), false, WARNING);
             break;
          }
          PluginLogosdaempresaConfig::setFundoLogin($ativarFundo);

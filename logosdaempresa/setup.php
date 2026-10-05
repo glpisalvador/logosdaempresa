@@ -7,7 +7,7 @@
 
 use Glpi\Http\Firewall;
 
-define('PLUGIN_LOGOSDAEMPRESA_VERSION', '1.6.0');
+define('PLUGIN_LOGOSDAEMPRESA_VERSION', '1.7.0');
 
 function plugin_init_logosdaempresa(): void {
    global $PLUGIN_HOOKS;
@@ -39,6 +39,18 @@ function plugin_init_logosdaempresa(): void {
       '#^/front/imagem\.php$#',
       Firewall::STRATEGY_NO_CHECK
    );
+   // Vídeo de fundo: público e sem sessão (o download longo não pode travar a sessão do login)
+   Firewall::addPluginStrategyForLegacyScripts(
+      'logosdaempresa',
+      '#^/front/video\.php$#',
+      Firewall::STRATEGY_NO_CHECK
+   );
+   if (class_exists(\Glpi\Http\SessionManager::class)) {
+      try {
+         \Glpi\Http\SessionManager::registerPluginStatelessPath('logosdaempresa', '#^/front/video\.php$#');
+      } catch (\Throwable $e) {
+      }
+   }
 
    Plugin::registerClass('PluginLogosdaempresaConfig');
    Plugin::registerClass('PluginLogosdaempresaMenu');
@@ -84,13 +96,16 @@ function plugin_logosdaempresa_display_login(): void {
    // Parte 3: Layout lateral da tela de login
    // =====================================================================
    // =====================================================================
-   // Parte 2b: Imagem de fundo na tela inteira, formulário ao lado
+   // Parte 2b: Fundo (imagem ou vídeo) na tela inteira ou em caixa, formulário ao lado
    // =====================================================================
    $fundoAtivo = class_exists('PluginLogosdaempresaConfig')
       && PluginLogosdaempresaConfig::fundoLoginAtivo()
-      && PluginLogosdaempresaConfig::caminhoFundoLogin() !== null;
+      && PluginLogosdaempresaConfig::midiaFundoDisponivel();
    if ($fundoAtivo) {
       $css .= PluginLogosdaempresaConfig::cssFundoLogin();
+      if (PluginLogosdaempresaConfig::tipoFundoLogin() === 'video') {
+         $js .= PluginLogosdaempresaConfig::jsVideoFundoLogin();
+      }
    }
 
    if (!$fundoAtivo && class_exists('PluginLogosdaempresaConfig') && PluginLogosdaempresaConfig::layoutLateralAtivo()) {
