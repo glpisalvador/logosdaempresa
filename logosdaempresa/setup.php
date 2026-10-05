@@ -7,7 +7,7 @@
 
 use Glpi\Http\Firewall;
 
-define('PLUGIN_LOGOSDAEMPRESA_VERSION', '1.4.0');
+define('PLUGIN_LOGOSDAEMPRESA_VERSION', '1.4.1');
 
 function plugin_init_logosdaempresa(): void {
    global $PLUGIN_HOOKS;

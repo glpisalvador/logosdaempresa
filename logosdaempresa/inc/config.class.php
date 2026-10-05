@@ -398,15 +398,15 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
 
       if ($o['estilo'] === 'painel') {
          $css .= "{$painel} {\n";
-         $css .= "   margin: 0 !important;\n   width: 460px;\n   max-width: 100% !important;\n   min-height: 100vh;\n";
+         $css .= "   margin: 0 !important;\n   width: 520px;\n   max-width: 100% !important;\n   min-height: 100vh;\n";
          $css .= "   display: flex;\n   flex-direction: column;\n   justify-content: center;\n";
-         $css .= "   padding: 32px 40px !important;\n";
+         $css .= "   padding: 32px 48px !important;\n";
          $css .= "   background: rgba(255, 255, 255, 0.95);\n   box-shadow: 0 0 32px rgba(0, 0, 0, 0.25);\n";
          $css .= "}\n";
       } else {
          $margem = $o['posicao'] === 'centro' ? 'auto' : '0 6vw';
          $css .= "{$painel} {\n";
-         $css .= "   margin: {$margem} !important;\n   width: 440px;\n   max-width: calc(100% - 32px) !important;\n";
+         $css .= "   margin: {$margem} !important;\n   width: 480px;\n   max-width: calc(100% - 32px) !important;\n";
          $css .= "   padding: 24px 28px !important;\n   border-radius: 10px;\n";
          $css .= "   background: rgba(255, 255, 255, 0.95);\n   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);\n";
          $css .= "}\n";
@@ -414,6 +414,15 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
 
       // O cartão do formulário se mistura ao painel
       $css .= "{$painel} .main-content-card {\n   border: 0 !important;\n   box-shadow: none !important;\n   background: transparent !important;\n}\n";
+      $css .= "{$painel} .main-content-card > .card-body {\n   padding: 8px 0 !important;\n}\n";
+
+      // Campos na largura toda do painel: o GLPI usa col-md-5 (pensado para o cartão largo de 60rem)
+      // e reserva uma coluna ao lado para o hook display_login; aqui essa coluna vai para baixo
+      $css .= "{$painel} .main-content-card form > .row {\n   margin: 0 !important;\n}\n";
+      $css .= "{$painel} .main-content-card form > .row > div {\n";
+      $css .= "   flex: 0 0 100% !important;\n   max-width: 100% !important;\n   width: 100% !important;\n   padding-left: 0 !important;\n   padding-right: 0 !important;\n";
+      $css .= "}\n";
+      $css .= "{$painel} .main-content-card form .card-header h2 {\n   white-space: normal;\n}\n";
 
       // Tema escuro do GLPI
       $css .= ":root[data-glpi-theme-dark=\"1\"] {$painel} {\n   background: rgba(24, 27, 34, 0.94);\n}\n";
@@ -1307,7 +1316,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
 
       echo '<div class="logosdaempresa-fundo-info"><i class="ti ti-info-circle"></i> ';
       echo 'A imagem cobre a tela inteira e o formulário fica no lado escolhido, como nos plugins de tela de login do GLPI. ';
-      echo 'Recomendado: 1920 x 1080 px, JPG, até 2 MB (limite do servidor). Imagens maiores que 2560 x 1600 são reduzidas. ';
+      echo 'Painel de login com 520 px (cartão: 480 px). Recomendado: 1920 x 1080 px, JPG, até 2 MB (limite do servidor). Imagens maiores que 2560 x 1600 são reduzidas. ';
       echo 'Ativar o fundo desativa o "Layout lateral com imagem" (e vice-versa). No celular o formulário ocupa a largura toda.';
       echo '</div>';
 
