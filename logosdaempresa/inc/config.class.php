@@ -266,6 +266,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
          'largura'    => max(50, min(95, (int) self::getConfig('fundo_login_caixa_largura', '80'))),
          'altura'     => max(50, min(90, (int) self::getConfig('fundo_login_caixa_altura', '75'))),
          'cantos'     => self::getConfig('fundo_login_caixa_cantos', '1') === '1',
+         'tipo'       => self::tipoFundoLogin(),
       ];
    }
 
@@ -280,7 +281,24 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       self::setConfig('fundo_login_caixa_largura', (string) max(50, min(95, (int) ($dados['fundo_login_caixa_largura'] ?? 80))));
       self::setConfig('fundo_login_caixa_altura', (string) max(50, min(90, (int) ($dados['fundo_login_caixa_altura'] ?? 75))));
       self::setConfig('fundo_login_caixa_cantos', !empty($dados['fundo_login_caixa_cantos']) ? '1' : '0');
-      Session::addMessageAfterRedirect(__('Opções da imagem de fundo salvas.', 'logosdaempresa'), true, INFO);
+      $tipo = ($dados['fundo_login_tipo'] ?? 'imagem') === 'video' ? 'video' : 'imagem';
+      self::setConfig('fundo_login_tipo', $tipo);
+      Session::addMessageAfterRedirect(__('Opções do fundo da tela de login salvas.', 'logosdaempresa'), true, INFO);
+      if (!self::midiaFundoDisponivel()) {
+         Session::addMessageAfterRedirect(
+            $tipo === 'video'
+               ? __('Envie um vídeo MP4 para o fundo aparecer na tela de login.', 'logosdaempresa')
+               : __('Envie uma imagem para o fundo aparecer na tela de login.', 'logosdaempresa'),
+            false,
+            WARNING
+         );
+      } elseif (!self::fundoLoginAtivo()) {
+         Session::addMessageAfterRedirect(
+            __('O fundo está desativado: use "Ativar na tela de login" para as opções aparecerem no login.', 'logosdaempresa'),
+            false,
+            WARNING
+         );
+      }
       return true;
    }
 
@@ -371,7 +389,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
     * configuráveis; o login fica numa segunda caixa dentro dela. O resto da página mantém o fundo do GLPI.
     * A caixa é o div.flex-fill da tela de login (main.page-anonymous > div > .container-tight).
     */
-   static function cssFundoLoginCaixa(string $url, array $o, string $escuro, string $pagina, string $painel): string {
+   static function cssFundoLoginCaixa(string $url, array $o, string $escuro, string $pagina, string $painel, bool $video = false): string {
       $alinhar = ['direita' => 'flex-end', 'esquerda' => 'flex-start', 'centro' => 'center'][$o['posicao']];
       $raio    = $o['cantos'] ? 14 : 0;
       $caixa   = $pagina . ' > div';
@@ -385,13 +403,18 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       $css .= "   width: {$o['largura']}vw;\n   max-width: 1600px;\n   min-height: {$o['altura']}vh;\n";
       $css .= "   margin: 0 !important;\n   padding: 0 !important;\n";
       $css .= "   flex-direction: row !important;\n   align-items: stretch !important;\n   justify-content: {$alinhar} !important;\n";
-      $css .= "   background: #222 url(\"{$url}\") center center / cover no-repeat;\n";
+      $imagem = $url !== '' ? " url(\"{$url}\") center center / cover no-repeat" : '';
+      $css .= "   background: #222{$imagem};\n";
       $css .= "   border-radius: {$raio}px;\n   overflow: hidden;\n   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);\n";
       $css .= "}\n";
-      $css .= "{$caixa}::before {\n   content: '';\n   position: absolute;\n   inset: 0;\n   background: rgba(0, 0, 0, {$escuro});\n   pointer-events: none;\n}\n";
+      // Camadas: vídeo (0), escurecimento (1) e formulário (2)
+      $css .= "{$caixa}::before {\n   content: '';\n   position: absolute;\n   inset: 0;\n   z-index: 1;\n   background: rgba(0, 0, 0, {$escuro});\n   pointer-events: none;\n}\n";
+      if ($video) {
+         $css .= "{$caixa} > #logosdaempresa-video {\n   position: absolute;\n   inset: 0;\n   z-index: 0;\n   width: 100%;\n   height: 100%;\n   object-fit: cover;\n   pointer-events: none;\n}\n";
+      }
 
       // A caixa do login, dentro da caixa da imagem
-      $css .= "{$painel} {\n   position: relative;\n   z-index: 1;\n   max-width: 100% !important;\n";
+      $css .= "{$painel} {\n   position: relative;\n   z-index: 2;\n   max-width: 100% !important;\n";
       if ($o['estilo'] === 'painel') {
          // Painel de altura inteira num dos lados da caixa
          $css .= "   width: 460px;\n   margin: 0 !important;\n";
@@ -434,13 +457,132 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       return false;
    }
 
+   // =========================================================================
+   // Vídeo de fundo da tela de login (MP4 até 100 MB, mudo e em loop)
+   // =========================================================================
+
+   const FUNDO_TIPOS = ['imagem' => 'Imagem', 'video' => 'Vídeo'];
+   const VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+
+   static function tipoFundoLogin(): string {
+      return self::getConfig('fundo_login_tipo', 'imagem') === 'video' ? 'video' : 'imagem';
+   }
+
+   /** Pasta dos vídeos: files/_plugins/logosdaempresa/videos */
+   static function pastaVideos(): string {
+      return GLPI_PLUGIN_DOC_DIR . DIRECTORY_SEPARATOR . 'logosdaempresa' . DIRECTORY_SEPARATOR . 'videos';
+   }
+
+   static function caminhoVideoFundo(): ?string {
+      $arquivo = (string) self::getConfig('fundo_login_video', '');
+      if (!preg_match('/^fundo_[a-f0-9]+\.mp4$/', $arquivo)) {
+         return null;
+      }
+      $caminho = self::pastaVideos() . DIRECTORY_SEPARATOR . $arquivo;
+      return is_file($caminho) ? $caminho : null;
+   }
+
+   static function getUrlVideoFundo(): string {
+      global $CFG_GLPI;
+      $caminho = self::caminhoVideoFundo();
+      if ($caminho === null) {
+         return '';
+      }
+      return $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/front/video.php?v=' . filemtime($caminho);
+   }
+
+   /** Existe a mídia do tipo escolhido (imagem ou vídeo)? */
+   static function midiaFundoDisponivel(): bool {
+      return self::tipoFundoLogin() === 'video'
+         ? self::caminhoVideoFundo() !== null
+         : self::caminhoFundoLogin() !== null;
+   }
+
+   /** Maior parte aceita por requisição, dentro dos limites do PHP (upload_max_filesize e post_max_size) */
+   static function tamanhoParteUpload(): int {
+      $emBytes = function (string $valor): int {
+         $valor = trim($valor);
+         $n = (int) $valor;
+         switch (strtolower(substr($valor, -1))) {
+            case 'g': $n *= 1024;
+            // no break
+            case 'm': $n *= 1024;
+            // no break
+            case 'k': $n *= 1024;
+         }
+         return $n;
+      };
+      $limites = array_filter([$emBytes((string) ini_get('upload_max_filesize')), $emBytes((string) ini_get('post_max_size'))]);
+      $limite  = $limites ? min($limites) : 2 * 1024 * 1024;
+      // Margem para os outros campos do formulário; entre 256 KB e 8 MB
+      return max(256 * 1024, min(8 * 1024 * 1024, $limite - 128 * 1024));
+   }
+
+   static function removerVideoFundo(): void {
+      $caminho = self::caminhoVideoFundo();
+      if ($caminho !== null) {
+         @unlink($caminho);
+      }
+      self::setConfig('fundo_login_video', '');
+      if (self::tipoFundoLogin() === 'video') {
+         self::setConfig('fundo_login_tipo', 'imagem');
+         if (self::caminhoFundoLogin() === null) {
+            self::setFundoLogin(false);
+         }
+      }
+   }
+
+   /**
+    * Vídeo na tela de login: o elemento é criado por JavaScript depois que a página monta
+    * (tela inteira: atrás de tudo; caixa: dentro da caixa, atrás do formulário).
+    */
+   static function jsVideoFundoLogin(): string {
+      $url = self::getUrlVideoFundo();
+      if ($url === '') {
+         return '';
+      }
+      $o      = self::opcoesFundoLogin();
+      $escuro = number_format($o['escurecer'] / 100, 2, '.', '');
+      $poster = self::getUrlFundoLogin();
+
+      $js  = "document.addEventListener('DOMContentLoaded', function(){\n";
+      $js .= "   if (document.getElementById('logosdaempresa-video')) { return; }\n";
+      $js .= "   var v = document.createElement('video');\n";
+      $js .= "   v.id = 'logosdaempresa-video';\n";
+      $js .= "   v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';\n";
+      $js .= "   v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('aria-hidden', 'true');\n";
+      if ($poster !== '') {
+         $js .= "   v.poster = " . json_encode($poster) . ";\n";
+      }
+      $js .= "   v.autoplay = true;\n";
+      $js .= "   v.src = " . json_encode($url) . ";\n";
+      if ($o['modo'] === 'caixa') {
+         $js .= "   var caixa = document.querySelector('body.welcome-anonymous .page-anonymous > div');\n";
+         $js .= "   if (!caixa) { return; }\n";
+         $js .= "   caixa.insertBefore(v, caixa.firstChild);\n";
+      } else {
+         $js .= "   var fundo = document.createElement('div');\n";
+         $js .= "   fundo.id = 'logosdaempresa-video-fundo';\n";
+         $js .= "   var escuro = document.createElement('div');\n";
+         $js .= "   escuro.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,{$escuro})';\n";
+         $js .= "   fundo.appendChild(v); fundo.appendChild(escuro);\n";
+         $js .= "   document.body.insertBefore(fundo, document.body.firstChild);\n";
+      }
+      $js .= "   var p = v.play(); if (p && p.catch) { p.catch(function(){}); }\n";
+      $js .= "});\n";
+      return $js;
+   }
+
    static function removerFundoLogin(): bool {
       $caminho = self::caminhoFundoLogin();
       if ($caminho !== null) {
          @unlink($caminho);
       }
       self::setConfig('fundo_login_imagem', '');
-      self::setFundoLogin(false);
+      // Com vídeo configurado o fundo continua valendo; a imagem era só a capa dele
+      if (!(self::tipoFundoLogin() === 'video' && self::caminhoVideoFundo() !== null)) {
+         self::setFundoLogin(false);
+      }
       Session::addMessageAfterRedirect(__('Imagem de fundo removida.', 'logosdaempresa'), true, INFO);
       return true;
    }
@@ -450,27 +592,36 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
     * main.page-anonymous > div.flex-fill > .container-tight [logo, cartão, rodapé])
     */
    static function cssFundoLogin(): string {
+      $o = self::opcoesFundoLogin();
+      $video = $o['tipo'] === 'video' && self::caminhoVideoFundo() !== null;
+      // Com vídeo, a imagem (se houver) é só a capa enquanto o vídeo carrega
       $url = self::getUrlFundoLogin();
-      if ($url === '') {
+      if ($url === '' && !$video) {
          return '';
       }
-      $o = self::opcoesFundoLogin();
       $alinhar = ['direita' => 'flex-end', 'esquerda' => 'flex-start', 'centro' => 'center'][$o['posicao']];
       $escuro  = number_format($o['escurecer'] / 100, 2, '.', '');
       $pagina  = 'body.welcome-anonymous .page-anonymous';
       $painel  = $pagina . ' .container-tight';
 
       if ($o['modo'] === 'caixa') {
-         return self::cssFundoLoginCaixa($url, $o, $escuro, $pagina, $painel);
+         return self::cssFundoLoginCaixa($url, $o, $escuro, $pagina, $painel, $video);
       }
 
+      $imagem = $url !== '' ? " url(\"{$url}\") center center / cover no-repeat fixed" : '';
       $css  = "body.welcome-anonymous {\n";
-      $css .= "   background: #222 url(\"{$url}\") center center / cover no-repeat fixed !important;\n";
+      $css .= "   background: #222{$imagem} !important;\n";
       $css .= "   min-height: 100vh;\n";
       $css .= "}\n";
-      $css .= "body.welcome-anonymous::before {\n";
-      $css .= "   content: '';\n   position: fixed;\n   inset: 0;\n   background: rgba(0, 0, 0, {$escuro});\n   pointer-events: none;\n   z-index: 0;\n";
-      $css .= "}\n";
+      if ($video) {
+         // O vídeo e o escurecimento ficam numa camada fixa atrás da página (criada pelo JS)
+         $css .= "#logosdaempresa-video-fundo {\n   position: fixed;\n   inset: 0;\n   z-index: 0;\n   overflow: hidden;\n   pointer-events: none;\n}\n";
+         $css .= "#logosdaempresa-video-fundo video {\n   position: absolute;\n   inset: 0;\n   width: 100%;\n   height: 100%;\n   object-fit: cover;\n}\n";
+      } else {
+         $css .= "body.welcome-anonymous::before {\n";
+         $css .= "   content: '';\n   position: fixed;\n   inset: 0;\n   background: rgba(0, 0, 0, {$escuro});\n   pointer-events: none;\n   z-index: 0;\n";
+         $css .= "}\n";
+      }
       $css .= "{$pagina} {\n   background: transparent !important;\n   position: relative;\n   z-index: 1;\n   min-height: 100vh;\n}\n";
       $css .= "{$pagina} > div {\n";
       $css .= "   min-height: 100vh;\n   margin-top: 0 !important;\n   padding: 0 !important;\n";
@@ -1306,59 +1457,80 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
    function renderizarSecaoFundo(): void {
       global $CFG_GLPI;
 
-      $acao    = $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/front/config.form.php';
-      $csrf    = '<input type="hidden" name="_glpi_csrf_token" value="' . self::tokenCsrf() . '">';
-      $ativo   = self::fundoLoginAtivo();
-      $url     = self::getUrlFundoLogin();
-      $opcoes  = self::opcoesFundoLogin();
+      $acao     = $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/front/config.form.php';
+      $ajax     = $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/front/ajax.php';
+      $csrf     = '<input type="hidden" name="_glpi_csrf_token" value="' . self::tokenCsrf() . '">';
+      $ativo    = self::fundoLoginAtivo();
+      $url      = self::getUrlFundoLogin();
+      $urlVideo = self::getUrlVideoFundo();
+      $opcoes   = self::opcoesFundoLogin();
+      $midia    = self::midiaFundoDisponivel();
+      $e        = fn($t) => htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8');
 
       echo '<div class="logosdaempresa-grupo">';
 
       echo '<div class="logosdaempresa-grupo-titulo">';
-      echo '<i class="ti ti-photo"></i> Imagem de fundo da tela de login';
-      if ($ativo && $url !== '') {
+      echo '<i class="ti ti-photo"></i> Fundo da tela de login (imagem ou vídeo)';
+      if ($ativo && $midia) {
          echo '<span class="logosdaempresa-tamanho logosdaempresa-selo-ativo">ATIVO</span>';
       }
       echo '</div>';
 
+      // Sem este aviso, mudar as opções com o fundo desativado parecia não ter efeito
+      if (!$ativo && ($url !== '' || $urlVideo !== '')) {
+         echo '<div class="logosdaempresa-fundo-aviso"><i class="ti ti-alert-triangle"></i> ';
+         echo 'O fundo está <b>desativado</b>: as opções abaixo só aparecem na tela de login depois de clicar em <b>Ativar na tela de login</b>.';
+         echo '</div>';
+      }
+
       echo '<div class="logosdaempresa-fundo">';
 
-      // Prévia: imagem na tela inteira ou dentro da caixa, com o login na posição escolhida
-      $escuroPreview = 'rgba(0,0,0,' . number_format($opcoes['escurecer'] / 100, 2, '.', '') . ')';
-      $imagemPreview = $url !== '' ? 'background-image:url(\'' . htmlspecialchars($url) . '\');' : '';
-      echo '<div class="logosdaempresa-fundo-preview logosdaempresa-fundo-modo-' . $opcoes['modo'] . '"'
-         . ($opcoes['modo'] === 'tela' && $imagemPreview !== '' ? ' style="' . $imagemPreview . '"' : '') . '>';
-      $classesLogin = 'logosdaempresa-fundo-' . $opcoes['posicao'] . ' logosdaempresa-fundo-estilo-' . $opcoes['estilo'];
-      if ($opcoes['modo'] === 'caixa') {
-         echo '<span class="logosdaempresa-fundo-caixa ' . $classesLogin . '" style="' . $imagemPreview
-            . 'width:' . $opcoes['largura'] . '%;height:' . $opcoes['altura'] . '%;border-radius:' . ($opcoes['cantos'] ? 6 : 0) . 'px">';
-         echo '<span class="logosdaempresa-fundo-escuro" style="background:' . $escuroPreview . '"></span>';
-      } else {
-         echo '<span class="logosdaempresa-fundo-tela ' . $classesLogin . '">';
-         echo '<span class="logosdaempresa-fundo-escuro" style="background:' . $escuroPreview . '"></span>';
-      }      if ($url === '') {
-         echo '<span class="logosdaempresa-fundo-vazio"><i class="ti ti-photo-off"></i> Nenhuma imagem enviada</span>';
+      // Prévia ao vivo (o fundo.js atualiza ao mexer nas opções, antes de salvar)
+      echo '<div class="logosdaempresa-fundo-preview logosdaempresa-fundo-modo-' . $opcoes['modo'] . '" id="logosdaempresa-previa"'
+         . ' data-imagem="' . $e($url) . '" data-video="' . $e($urlVideo) . '">';
+      if ($urlVideo !== '') {
+         echo '<video class="logosdaempresa-fundo-video" id="logosdaempresa-previa-video" src="' . $e($urlVideo) . '" muted loop autoplay playsinline preload="metadata"'
+            . ($opcoes['tipo'] === 'video' ? '' : ' hidden') . '></video>';
       }
+      echo '<span class="logosdaempresa-fundo-' . ($opcoes['modo'] === 'caixa' ? 'caixa' : 'tela')
+         . ' logosdaempresa-fundo-' . $opcoes['posicao'] . ' logosdaempresa-fundo-estilo-' . $opcoes['estilo'] . '" id="logosdaempresa-previa-area">';
+      echo '<span class="logosdaempresa-fundo-escuro" id="logosdaempresa-previa-escuro"></span>';
+      echo '<span class="logosdaempresa-fundo-vazio" id="logosdaempresa-previa-vazio" hidden><i class="ti ti-photo-off"></i> <span></span></span>';
       echo '<span class="logosdaempresa-fundo-painel"><i class="ti ti-lock"></i><b></b><b></b><i class="logosdaempresa-fundo-botao"></i></span>';
       echo '</span>';
       echo '</div>';
 
       echo '<div class="logosdaempresa-fundo-controles">';
 
-      // Enviar / remover imagem
+      // Arquivos: imagem, vídeo e ativação
       echo '<div class="logosdaempresa-acoes">';
       echo '<form method="post" enctype="multipart/form-data" action="' . $acao . '" style="margin:0">' . $csrf;
       echo '<input type="hidden" name="save_action" value="upload_fundo_login">';
-      echo '<label class="logosdaempresa-btn-upload"><i class="ti ti-upload"></i> ' . ($url !== '' ? 'Trocar imagem de fundo' : 'Enviar imagem de fundo');
+      echo '<label class="logosdaempresa-btn-upload"><i class="ti ti-photo-up"></i> ' . ($url !== '' ? 'Trocar imagem' : 'Enviar imagem');
       echo '<input type="file" name="fundo_login" accept="image/jpeg,image/png,image/webp" onchange="this.closest(\'form\').submit()" style="display:none">';
       echo '</label>';
       echo '</form>';
+
+      echo '<label class="logosdaempresa-btn-upload" id="logosdaempresa-video-botao"><i class="ti ti-movie"></i> '
+         . ($urlVideo !== '' ? 'Trocar vídeo' : 'Enviar vídeo MP4');
+      echo '<input type="file" id="logosdaempresa-video-arquivo" accept="video/mp4,.mp4" style="display:none"'
+         . ' data-ajax="' . $e($ajax) . '" data-parte="' . self::tamanhoParteUpload() . '" data-maximo="' . self::VIDEO_MAX_BYTES . '"'
+         . ' data-token="' . $e(self::tokenCsrf()) . '">';
+      echo '</label>';
+
       if ($url !== '') {
          echo '<form method="post" action="' . $acao . '" style="margin:0">' . $csrf;
          echo '<input type="hidden" name="save_action" value="remover_fundo_login">';
          echo '<button type="submit" class="logosdaempresa-btn-restaurar"><i class="ti ti-trash"></i> Remover imagem</button>';
          echo '</form>';
-
+      }
+      if ($urlVideo !== '') {
+         echo '<form method="post" action="' . $acao . '" style="margin:0">' . $csrf;
+         echo '<input type="hidden" name="save_action" value="remover_video_fundo">';
+         echo '<button type="submit" class="logosdaempresa-btn-restaurar"><i class="ti ti-trash"></i> Remover vídeo</button>';
+         echo '</form>';
+      }
+      if ($url !== '' || $urlVideo !== '') {
          echo '<form method="post" action="' . $acao . '" style="margin:0">' . $csrf;
          echo '<input type="hidden" name="save_action" value="toggle_fundo_login">';
          echo $ativo
@@ -1368,20 +1540,34 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       }
       echo '</div>';
 
+      // Progresso do envio do vídeo
+      echo '<div class="logosdaempresa-video-progresso" id="logosdaempresa-video-progresso" hidden>';
+      echo '<div class="logosdaempresa-video-progresso-texto"><span id="logosdaempresa-video-status">Enviando...</span> <b id="logosdaempresa-video-pct">0%</b></div>';
+      echo '<div class="logosdaempresa-video-barra"><i id="logosdaempresa-video-barra"></i></div>';
+      echo '</div>';
+
       // Opções
-      echo '<form method="post" action="' . $acao . '" class="logosdaempresa-fundo-opcoes">' . $csrf;
+      echo '<form method="post" action="' . $acao . '" class="logosdaempresa-fundo-opcoes" id="logosdaempresa-fundo-opcoes">' . $csrf;
       echo '<input type="hidden" name="save_action" value="salvar_opcoes_fundo">';
 
-      echo '<label>Exibição da imagem<select name="fundo_login_modo" class="form-select form-select-sm" '
-         . 'onchange="this.form.querySelector(\'.logosdaempresa-fundo-so-area\').hidden = this.value !== \'caixa\'">';
+      echo '<div class="logosdaempresa-fundo-campo"><span>Tipo de fundo</span><div class="logosdaempresa-segmentos">';
+      foreach (['imagem' => 'ti ti-photo', 'video' => 'ti ti-movie'] as $valor => $icone) {
+         echo '<label class="logosdaempresa-segmento"><input type="radio" name="fundo_login_tipo" value="' . $valor . '"'
+            . ($opcoes['tipo'] === $valor ? ' checked' : '') . '><span><i class="' . $icone . '"></i> ' . self::FUNDO_TIPOS[$valor] . '</span></label>';
+      }
+      echo '</div></div>';
+
+      echo '<div class="logosdaempresa-fundo-campo"><span>Posição do formulário de login</span><div class="logosdaempresa-segmentos">';
+      $icones = ['esquerda' => 'ti ti-layout-sidebar', 'centro' => 'ti ti-layout-align-center', 'direita' => 'ti ti-layout-sidebar-right'];
+      foreach (['esquerda', 'centro', 'direita'] as $valor) {
+         echo '<label class="logosdaempresa-segmento"><input type="radio" name="fundo_login_posicao" value="' . $valor . '"'
+            . ($opcoes['posicao'] === $valor ? ' checked' : '') . '><span><i class="' . $icones[$valor] . '"></i> ' . self::FUNDO_POSICOES[$valor] . '</span></label>';
+      }
+      echo '</div></div>';
+
+      echo '<label>Exibição<select name="fundo_login_modo" class="form-select form-select-sm">';
       foreach (self::FUNDO_MODOS as $valor => $rotulo) {
          echo '<option value="' . $valor . '"' . ($opcoes['modo'] === $valor ? ' selected' : '') . '>' . $rotulo . '</option>';
-      }
-      echo '</select></label>';
-
-      echo '<label>Formulário de login<select name="fundo_login_posicao" class="form-select form-select-sm">';
-      foreach (self::FUNDO_POSICOES as $valor => $rotulo) {
-         echo '<option value="' . $valor . '"' . ($opcoes['posicao'] === $valor ? ' selected' : '') . '>' . $rotulo . '</option>';
       }
       echo '</select></label>';
 
@@ -1391,35 +1577,33 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       }
       echo '</select></label>';
 
-      echo '<label>Escurecer o fundo: <span class="logosdaempresa-fundo-valor">' . $opcoes['escurecer'] . '%</span>';
-      echo '<input type="range" name="fundo_login_escurecer" min="0" max="70" step="5" value="' . $opcoes['escurecer'] . '" class="form-range" '
-         . 'oninput="this.previousElementSibling.textContent=this.value+\'%\'">';
+      echo '<label>Escurecer o fundo: <span class="logosdaempresa-fundo-valor" data-sufixo="%">' . $opcoes['escurecer'] . '%</span>';
+      echo '<input type="range" name="fundo_login_escurecer" min="0" max="70" step="5" value="' . $opcoes['escurecer'] . '" class="form-range">';
       echo '</label>';
 
       // Só no modo caixa
       echo '<div class="logosdaempresa-fundo-so-area"' . ($opcoes['modo'] === 'caixa' ? '' : ' hidden') . '>';
-      echo '<label>Largura da caixa: <span class="logosdaempresa-fundo-valor">' . $opcoes['largura'] . '% da tela</span>';
-      echo '<input type="range" name="fundo_login_caixa_largura" min="50" max="95" step="5" value="' . $opcoes['largura'] . '" class="form-range" '
-         . 'oninput="this.previousElementSibling.textContent=this.value+\'% da tela\'">';
+      echo '<label>Largura da caixa: <span class="logosdaempresa-fundo-valor" data-sufixo="% da tela">' . $opcoes['largura'] . '% da tela</span>';
+      echo '<input type="range" name="fundo_login_caixa_largura" min="50" max="95" step="5" value="' . $opcoes['largura'] . '" class="form-range">';
       echo '</label>';
-      echo '<label>Altura da caixa: <span class="logosdaempresa-fundo-valor">' . $opcoes['altura'] . '% da tela</span>';
-      echo '<input type="range" name="fundo_login_caixa_altura" min="50" max="90" step="5" value="' . $opcoes['altura'] . '" class="form-range" '
-         . 'oninput="this.previousElementSibling.textContent=this.value+\'% da tela\'">';
+      echo '<label>Altura da caixa: <span class="logosdaempresa-fundo-valor" data-sufixo="% da tela">' . $opcoes['altura'] . '% da tela</span>';
+      echo '<input type="range" name="fundo_login_caixa_altura" min="50" max="90" step="5" value="' . $opcoes['altura'] . '" class="form-range">';
       echo '</label>';
       echo '<label class="logosdaempresa-fundo-check form-check form-switch">';
       echo '<input type="checkbox" class="form-check-input" name="fundo_login_caixa_cantos" value="1"' . ($opcoes['cantos'] ? ' checked' : '') . '>';
       echo '<span class="form-check-label">Cantos arredondados</span>';
       echo '</label>';
       echo '</div>';
-      echo '<button type="submit" class="logosdaempresa-btn-upload"><i class="ti ti-device-floppy"></i> Salvar opções</button>';
+      echo '<button type="submit" class="logosdaempresa-btn-upload" id="logosdaempresa-fundo-salvar"><i class="ti ti-device-floppy"></i> <span>Salvar opções</span></button>';
       echo '</form>';
 
       echo '</div>'; // controles
       echo '</div>'; // fundo
 
       echo '<div class="logosdaempresa-fundo-info"><i class="ti ti-info-circle"></i> ';
-      echo 'Tela inteira: a imagem cobre a tela e o formulário fica por cima, no lado escolhido. Caixa: a imagem fica numa caixa centralizada (como um modal) e o login numa segunda caixa dentro dela; o resto da página mantém o fundo do GLPI. ';
-      echo 'Painel de login com 520 px (cartão: 480 px). Recomendado: 1920 x 1080 px, JPG, até 2 MB (limite do servidor). Imagens maiores que 2560 x 1600 são reduzidas. ';
+      echo 'Tela inteira: o fundo cobre a tela e o formulário fica por cima, no lado escolhido. Caixa: o fundo fica numa caixa centralizada (como um modal) e o login numa segunda caixa dentro dela. ';
+      echo 'Imagem: JPG, PNG ou WebP (recomendado 1920 x 1080 px; maiores que 2560 x 1600 são reduzidas). ';
+      echo 'Vídeo: MP4 (H.264) até 100 MB, sem som e em loop; a imagem, se enviada, aparece enquanto o vídeo carrega. Os arquivos ficam em files/_plugins/logosdaempresa. ';
       echo 'Ativar o fundo desativa o "Layout lateral com imagem" (e vice-versa). No celular o formulário ocupa a largura toda.';
       echo '</div>';
 
@@ -1483,6 +1667,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
 
       $cssUrl = $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/css/logosdaempresa.css';
       echo '<link rel="stylesheet" href="' . $cssUrl . '">';
+      echo '<script src="' . $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/js/fundo.js?v=' . PLUGIN_LOGOSDAEMPRESA_VERSION . '" defer></script>';
 
       echo '<div class="logosdaempresa-container">';
 

@@ -13,6 +13,12 @@ function plugin_logosdaempresa_install(): bool {
       @mkdir($pasta, 0755, true);
    }
 
+   // Pasta dos vídeos de fundo da tela de login (e das partes durante o envio)
+   $videos = GLPI_PLUGIN_DOC_DIR . DIRECTORY_SEPARATOR . 'logosdaempresa' . DIRECTORY_SEPARATOR . 'videos' . DIRECTORY_SEPARATOR . 'envio';
+   if (!is_dir($videos)) {
+      @mkdir($videos, 0755, true);
+   }
+
    // Criar tabela de configurações
    $tabela = 'glpi_plugin_logosdaempresa_configs';
    if (!$DB->tableExists($tabela)) {
