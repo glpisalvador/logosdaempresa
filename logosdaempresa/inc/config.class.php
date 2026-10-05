@@ -217,6 +217,215 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       return true;
    }
 
+   // =========================================================================
+   // Imagem de fundo da tela de login (formulário ao lado)
+   // =========================================================================
+
+   const FUNDO_POSICOES = ['direita' => 'Direita', 'esquerda' => 'Esquerda', 'centro' => 'Centro'];
+   const FUNDO_ESTILOS  = ['painel' => 'Painel lateral de altura inteira', 'cartao' => 'Cartão flutuante'];
+
+   static function fundoLoginAtivo(): bool {
+      return self::getConfig('fundo_login_ativo', '0') === '1';
+   }
+
+   static function setFundoLogin(bool $ativo): bool {
+      return self::setConfig('fundo_login_ativo', $ativo ? '1' : '0');
+   }
+
+   /** Caminho da imagem de fundo enviada (null se não houver) */
+   static function caminhoFundoLogin(): ?string {
+      $arquivo = (string) self::getConfig('fundo_login_imagem', '');
+      if ($arquivo === '') {
+         return null;
+      }
+      $caminho = GLPI_PLUGIN_DOC_DIR . DIRECTORY_SEPARATOR . 'logosdaempresa' . DIRECTORY_SEPARATOR . $arquivo;
+      return is_file($caminho) ? $caminho : null;
+   }
+
+   static function getUrlFundoLogin(): string {
+      global $CFG_GLPI;
+      $caminho = self::caminhoFundoLogin();
+      if ($caminho === null) {
+         return '';
+      }
+      return $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/front/imagem.php?arquivo='
+         . urlencode(basename($caminho)) . '&v=' . filemtime($caminho);
+   }
+
+   /** Opções do fundo com valores válidos (posição, estilo e escurecimento 0-70%) */
+   static function opcoesFundoLogin(): array {
+      $posicao = (string) self::getConfig('fundo_login_posicao', 'direita');
+      $estilo  = (string) self::getConfig('fundo_login_estilo', 'painel');
+      return [
+         'posicao'    => isset(self::FUNDO_POSICOES[$posicao]) ? $posicao : 'direita',
+         'estilo'     => isset(self::FUNDO_ESTILOS[$estilo]) ? $estilo : 'painel',
+         'escurecer'  => max(0, min(70, (int) self::getConfig('fundo_login_escurecer', '20'))),
+      ];
+   }
+
+   static function salvarOpcoesFundoLogin(array $dados): bool {
+      $posicao   = (string) ($dados['fundo_login_posicao'] ?? 'direita');
+      $estilo    = (string) ($dados['fundo_login_estilo'] ?? 'painel');
+      $escurecer = max(0, min(70, (int) ($dados['fundo_login_escurecer'] ?? 20)));
+      self::setConfig('fundo_login_posicao', isset(self::FUNDO_POSICOES[$posicao]) ? $posicao : 'direita');
+      self::setConfig('fundo_login_estilo', isset(self::FUNDO_ESTILOS[$estilo]) ? $estilo : 'painel');
+      self::setConfig('fundo_login_escurecer', (string) $escurecer);
+      Session::addMessageAfterRedirect(__('Opções da imagem de fundo salvas.', 'logosdaempresa'), true, INFO);
+      return true;
+   }
+
+   /**
+    * Guarda a imagem de fundo. Imagens acima de 2560 x 1600 são reduzidas (JPEG 85%, ou PNG se tiver transparência)
+    * para a tela de login continuar leve.
+    */
+   static function processarUploadFundoLogin(array $dadosArquivo): bool {
+      $mimePermitidos = ['image/png', 'image/jpeg', 'image/webp'];
+      $mimeEnviado    = mime_content_type($dadosArquivo['tmp_name']);
+      if (!in_array($mimeEnviado, $mimePermitidos, true)) {
+         Session::addMessageAfterRedirect(__('Formato não suportado. Use JPG, PNG ou WebP.', 'logosdaempresa'), false, ERROR);
+         return false;
+      }
+
+      $pasta = GLPI_PLUGIN_DOC_DIR . DIRECTORY_SEPARATOR . 'logosdaempresa';
+      if (!is_dir($pasta)) {
+         @mkdir($pasta, 0755, true);
+      }
+      if (!is_dir($pasta) || !is_writable($pasta)) {
+         Session::addMessageAfterRedirect(__('Sem permissão de escrita na pasta de dados do plugin.', 'logosdaempresa') . ' ' . $pasta, false, ERROR);
+         return false;
+      }
+
+      $imagem = match ($mimeEnviado) {
+         'image/png'  => @imagecreatefrompng($dadosArquivo['tmp_name']),
+         'image/jpeg' => @imagecreatefromjpeg($dadosArquivo['tmp_name']),
+         'image/webp' => @imagecreatefromwebp($dadosArquivo['tmp_name']),
+      };
+      if (!$imagem) {
+         Session::addMessageAfterRedirect(__('Erro ao processar a imagem enviada.', 'logosdaempresa'), false, ERROR);
+         return false;
+      }
+
+      $w = imagesx($imagem);
+      $h = imagesy($imagem);
+      $escala = min(1, 2560 / $w, 1600 / $h);
+      $mensagem = __('Imagem de fundo atualizada.', 'logosdaempresa');
+      if ($escala < 1) {
+         $nw = (int) round($w * $escala);
+         $nh = (int) round($h * $escala);
+         $menor = imagecreatetruecolor($nw, $nh);
+         imagealphablending($menor, false);
+         imagesavealpha($menor, true);
+         imagecopyresampled($menor, $imagem, 0, 0, 0, 0, $nw, $nh, $w, $h);
+         imagedestroy($imagem);
+         $imagem = $menor;
+         $mensagem .= ' ' . sprintf(__('Reduzida de %1$d x %2$d para %3$d x %4$d px para a tela carregar rápido.', 'logosdaempresa'), $w, $h, $nw, $nh);
+      }
+
+      $comTransparencia = $mimeEnviado === 'image/png' && self::temTransparencia($imagem);
+      $nome    = 'fundo_' . uniqid() . ($comTransparencia ? '.png' : '.jpg');
+      $destino = $pasta . DIRECTORY_SEPARATOR . $nome;
+      $gravou  = $comTransparencia ? imagepng($imagem, $destino, 9) : imagejpeg($imagem, $destino, 85);
+      imagedestroy($imagem);
+
+      if (!$gravou) {
+         Session::addMessageAfterRedirect(__('Erro ao salvar a imagem de fundo.', 'logosdaempresa'), false, ERROR);
+         return false;
+      }
+
+      $anterior = self::caminhoFundoLogin();
+      if ($anterior !== null) {
+         @unlink($anterior);
+      }
+      self::setConfig('fundo_login_imagem', $nome);
+      Session::addMessageAfterRedirect($mensagem, true, INFO);
+      return true;
+   }
+
+   /** Amostra a imagem procurando pixels transparentes (evita varrer imagens grandes pixel a pixel) */
+   static function temTransparencia(\GdImage $imagem): bool {
+      $w = imagesx($imagem);
+      $h = imagesy($imagem);
+      $passoX = max(1, (int) ($w / 60));
+      $passoY = max(1, (int) ($h / 60));
+      for ($y = 0; $y < $h; $y += $passoY) {
+         for ($x = 0; $x < $w; $x += $passoX) {
+            if (((imagecolorat($imagem, $x, $y) >> 24) & 0x7F) > 0) {
+               return true;
+            }
+         }
+      }
+      return false;
+   }
+
+   static function removerFundoLogin(): bool {
+      $caminho = self::caminhoFundoLogin();
+      if ($caminho !== null) {
+         @unlink($caminho);
+      }
+      self::setConfig('fundo_login_imagem', '');
+      self::setFundoLogin(false);
+      Session::addMessageAfterRedirect(__('Imagem de fundo removida.', 'logosdaempresa'), true, INFO);
+      return true;
+   }
+
+   /**
+    * CSS da tela de login com imagem de fundo e o formulário ao lado (GLPI 11 e 12:
+    * main.page-anonymous > div.flex-fill > .container-tight [logo, cartão, rodapé])
+    */
+   static function cssFundoLogin(): string {
+      $url = self::getUrlFundoLogin();
+      if ($url === '') {
+         return '';
+      }
+      $o = self::opcoesFundoLogin();
+      $alinhar = ['direita' => 'flex-end', 'esquerda' => 'flex-start', 'centro' => 'center'][$o['posicao']];
+      $escuro  = number_format($o['escurecer'] / 100, 2, '.', '');
+      $pagina  = 'body.welcome-anonymous .page-anonymous';
+      $painel  = $pagina . ' .container-tight';
+
+      $css  = "body.welcome-anonymous {\n";
+      $css .= "   background: #222 url(\"{$url}\") center center / cover no-repeat fixed !important;\n";
+      $css .= "   min-height: 100vh;\n";
+      $css .= "}\n";
+      $css .= "body.welcome-anonymous::before {\n";
+      $css .= "   content: '';\n   position: fixed;\n   inset: 0;\n   background: rgba(0, 0, 0, {$escuro});\n   pointer-events: none;\n   z-index: 0;\n";
+      $css .= "}\n";
+      $css .= "{$pagina} {\n   background: transparent !important;\n   position: relative;\n   z-index: 1;\n   min-height: 100vh;\n}\n";
+      $css .= "{$pagina} > div {\n";
+      $css .= "   min-height: 100vh;\n   margin-top: 0 !important;\n   padding: 0 !important;\n";
+      $css .= "   flex-direction: row !important;\n   align-items: center !important;\n   justify-content: {$alinhar} !important;\n";
+      $css .= "}\n";
+
+      if ($o['estilo'] === 'painel') {
+         $css .= "{$painel} {\n";
+         $css .= "   margin: 0 !important;\n   width: 460px;\n   max-width: 100% !important;\n   min-height: 100vh;\n";
+         $css .= "   display: flex;\n   flex-direction: column;\n   justify-content: center;\n";
+         $css .= "   padding: 32px 40px !important;\n";
+         $css .= "   background: rgba(255, 255, 255, 0.95);\n   box-shadow: 0 0 32px rgba(0, 0, 0, 0.25);\n";
+         $css .= "}\n";
+      } else {
+         $margem = $o['posicao'] === 'centro' ? 'auto' : '0 6vw';
+         $css .= "{$painel} {\n";
+         $css .= "   margin: {$margem} !important;\n   width: 440px;\n   max-width: calc(100% - 32px) !important;\n";
+         $css .= "   padding: 24px 28px !important;\n   border-radius: 10px;\n";
+         $css .= "   background: rgba(255, 255, 255, 0.95);\n   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);\n";
+         $css .= "}\n";
+      }
+
+      // O cartão do formulário se mistura ao painel
+      $css .= "{$painel} .main-content-card {\n   border: 0 !important;\n   box-shadow: none !important;\n   background: transparent !important;\n}\n";
+
+      // Tema escuro do GLPI
+      $css .= ":root[data-glpi-theme-dark=\"1\"] {$painel} {\n   background: rgba(24, 27, 34, 0.94);\n}\n";
+
+      // Celular: painel na largura toda
+      $css .= "@media only screen and (max-width: 768px) {\n";
+      $css .= "   {$pagina} > div { justify-content: center !important; }\n";
+      $css .= "   {$painel} { width: 100% !important; margin: 0 !important; border-radius: 0; min-height: 100vh; }\n";
+      $css .= "}\n";
+
+      return $css;
+   }
    static function hexParaHsl(string $hex): array {
       $hex = ltrim($hex, '#');
       $r = hexdec(substr($hex, 0, 2)) / 255;
@@ -1014,6 +1223,96 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       echo '</div>';
    }
 
+   function renderizarSecaoFundo(): void {
+      global $CFG_GLPI;
+
+      $acao    = $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/front/config.form.php';
+      $csrf    = '<input type="hidden" name="_glpi_csrf_token" value="' . self::tokenCsrf() . '">';
+      $ativo   = self::fundoLoginAtivo();
+      $url     = self::getUrlFundoLogin();
+      $opcoes  = self::opcoesFundoLogin();
+
+      echo '<div class="logosdaempresa-grupo">';
+
+      echo '<div class="logosdaempresa-grupo-titulo">';
+      echo '<i class="ti ti-photo"></i> Imagem de fundo da tela de login';
+      if ($ativo && $url !== '') {
+         echo '<span class="logosdaempresa-tamanho logosdaempresa-selo-ativo">ATIVO</span>';
+      }
+      echo '</div>';
+
+      echo '<div class="logosdaempresa-fundo">';
+
+      // Prévia: imagem com o painel na posição escolhida
+      echo '<div class="logosdaempresa-fundo-preview logosdaempresa-fundo-' . $opcoes['posicao'] . ' logosdaempresa-fundo-estilo-' . $opcoes['estilo'] . '"'
+         . ($url !== '' ? ' style="background-image:url(\'' . htmlspecialchars($url) . '\')"' : '') . '>';
+      echo '<span class="logosdaempresa-fundo-escuro" style="background:rgba(0,0,0,' . number_format($opcoes['escurecer'] / 100, 2, '.', '') . ')"></span>';
+      if ($url === '') {
+         echo '<span class="logosdaempresa-fundo-vazio"><i class="ti ti-photo-off"></i> Nenhuma imagem enviada</span>';
+      }
+      echo '<span class="logosdaempresa-fundo-painel"><i class="ti ti-lock"></i><b></b><b></b><i class="logosdaempresa-fundo-botao"></i></span>';
+      echo '</div>';
+
+      echo '<div class="logosdaempresa-fundo-controles">';
+
+      // Enviar / remover imagem
+      echo '<div class="logosdaempresa-acoes">';
+      echo '<form method="post" enctype="multipart/form-data" action="' . $acao . '" style="margin:0">' . $csrf;
+      echo '<input type="hidden" name="save_action" value="upload_fundo_login">';
+      echo '<label class="logosdaempresa-btn-upload"><i class="ti ti-upload"></i> ' . ($url !== '' ? 'Trocar imagem de fundo' : 'Enviar imagem de fundo');
+      echo '<input type="file" name="fundo_login" accept="image/jpeg,image/png,image/webp" onchange="this.closest(\'form\').submit()" style="display:none">';
+      echo '</label>';
+      echo '</form>';
+      if ($url !== '') {
+         echo '<form method="post" action="' . $acao . '" style="margin:0">' . $csrf;
+         echo '<input type="hidden" name="save_action" value="remover_fundo_login">';
+         echo '<button type="submit" class="logosdaempresa-btn-restaurar"><i class="ti ti-trash"></i> Remover imagem</button>';
+         echo '</form>';
+
+         echo '<form method="post" action="' . $acao . '" style="margin:0">' . $csrf;
+         echo '<input type="hidden" name="save_action" value="toggle_fundo_login">';
+         echo $ativo
+            ? '<button type="submit" class="logosdaempresa-btn-restaurar"><i class="ti ti-eye-off"></i> Desativar na tela de login</button>'
+            : '<button type="submit" class="logosdaempresa-btn-upload"><i class="ti ti-check"></i> Ativar na tela de login</button>';
+         echo '</form>';
+      }
+      echo '</div>';
+
+      // Opções
+      echo '<form method="post" action="' . $acao . '" class="logosdaempresa-fundo-opcoes">' . $csrf;
+      echo '<input type="hidden" name="save_action" value="salvar_opcoes_fundo">';
+
+      echo '<label>Formulário de login<select name="fundo_login_posicao" class="form-select form-select-sm">';
+      foreach (self::FUNDO_POSICOES as $valor => $rotulo) {
+         echo '<option value="' . $valor . '"' . ($opcoes['posicao'] === $valor ? ' selected' : '') . '>' . $rotulo . '</option>';
+      }
+      echo '</select></label>';
+
+      echo '<label>Estilo<select name="fundo_login_estilo" class="form-select form-select-sm">';
+      foreach (self::FUNDO_ESTILOS as $valor => $rotulo) {
+         echo '<option value="' . $valor . '"' . ($opcoes['estilo'] === $valor ? ' selected' : '') . '>' . $rotulo . '</option>';
+      }
+      echo '</select></label>';
+
+      echo '<label>Escurecer o fundo: <span class="logosdaempresa-fundo-valor">' . $opcoes['escurecer'] . '%</span>';
+      echo '<input type="range" name="fundo_login_escurecer" min="0" max="70" step="5" value="' . $opcoes['escurecer'] . '" class="form-range" '
+         . 'oninput="this.previousElementSibling.textContent=this.value+\'%\'">';
+      echo '</label>';
+
+      echo '<button type="submit" class="logosdaempresa-btn-upload"><i class="ti ti-device-floppy"></i> Salvar opções</button>';
+      echo '</form>';
+
+      echo '</div>'; // controles
+      echo '</div>'; // fundo
+
+      echo '<div class="logosdaempresa-fundo-info"><i class="ti ti-info-circle"></i> ';
+      echo 'A imagem cobre a tela inteira e o formulário fica no lado escolhido, como nos plugins de tela de login do GLPI. ';
+      echo 'Recomendado: 1920 x 1080 px, JPG, até 2 MB (limite do servidor). Imagens maiores que 2560 x 1600 são reduzidas. ';
+      echo 'Ativar o fundo desativa o "Layout lateral com imagem" (e vice-versa). No celular o formulário ocupa a largura toda.';
+      echo '</div>';
+
+      echo '</div>';
+   }
    function renderizarSecaoRodape(): void {
       global $CFG_GLPI;
 
@@ -1082,6 +1381,9 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
 
       // Seção de layout da tela de login
       $this->renderizarSecaoLayout();
+
+      // Seção de imagem de fundo da tela de login
+      $this->renderizarSecaoFundo();
 
       // Seção de texto de rodapé
       $this->renderizarSecaoRodape();

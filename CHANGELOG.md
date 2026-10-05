@@ -2,6 +2,13 @@
 
 O arquivo para download de cada versão está em [Releases](https://github.com/glpisalvador/logosdaempresa/releases).
 
+## 1.4.0 — 2026-09-29
+
+Versão intermediária de 29/09/2026.
+
+
+**Arquivos alterados:** `front/config.form.php`, `front/imagem.php`, `hook.php`, `inc/config.class.php`, `public/css/logosdaempresa.css`, `setup.php`
+
 ## 1.3.1 — 2026-09-29
 
 Versão intermediária de 29/09/2026.

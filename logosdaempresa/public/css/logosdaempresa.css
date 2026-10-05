@@ -295,3 +295,134 @@
    font-size: 11px;
    color: #6c757d;
 }
+/* Imagem de fundo da tela de login */
+.logosdaempresa-selo-ativo {
+   background: rgba(25, 135, 84, 0.1) !important;
+   color: #198754 !important;
+   padding: 2px 10px;
+   border-radius: 3px;
+   font-size: 10px;
+}
+
+.logosdaempresa-fundo {
+   display: flex;
+   gap: 18px;
+   flex-wrap: wrap;
+   padding: 14px;
+}
+
+.logosdaempresa-fundo-preview {
+   position: relative;
+   width: 320px;
+   height: 180px;
+   flex-shrink: 0;
+   border: 1px solid #dee2e6;
+   border-radius: 4px;
+   overflow: hidden;
+   background: #e9ecef center / cover no-repeat;
+   display: flex;
+   align-items: center;
+}
+
+.logosdaempresa-fundo-escuro {
+   position: absolute;
+   inset: 0;
+}
+
+.logosdaempresa-fundo-vazio {
+   position: absolute;
+   top: 8px;
+   left: 10px;
+   font-size: 11px;
+   color: #6c757d;
+}
+
+.logosdaempresa-fundo-painel {
+   position: relative;
+   z-index: 1;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   justify-content: center;
+   gap: 6px;
+   width: 90px;
+   background: rgba(255, 255, 255, 0.95);
+   box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+   color: #6c757d;
+   font-size: 14px;
+}
+
+.logosdaempresa-fundo-painel b {
+   display: block;
+   width: 60px;
+   height: 7px;
+   border-radius: 2px;
+   background: #dee2e6;
+}
+
+.logosdaempresa-fundo-botao {
+   display: block;
+   width: 60px;
+   height: 9px;
+   border-radius: 2px;
+   background: #e5a54b;
+}
+
+.logosdaempresa-fundo-estilo-painel .logosdaempresa-fundo-painel {
+   height: 100%;
+}
+
+.logosdaempresa-fundo-estilo-cartao .logosdaempresa-fundo-painel {
+   height: 110px;
+   border-radius: 5px;
+   margin: 0 16px;
+}
+
+.logosdaempresa-fundo-direita {
+   justify-content: flex-end;
+}
+
+.logosdaempresa-fundo-esquerda {
+   justify-content: flex-start;
+}
+
+.logosdaempresa-fundo-centro {
+   justify-content: center;
+}
+
+.logosdaempresa-fundo-controles {
+   display: flex;
+   flex-direction: column;
+   gap: 14px;
+   flex: 1;
+   min-width: 260px;
+}
+
+.logosdaempresa-fundo-opcoes {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: flex-end;
+   gap: 18px;
+   margin: 0;
+}
+
+.logosdaempresa-fundo-opcoes label {
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
+   font-size: 12px;
+   font-weight: 600;
+   color: #495057;
+   min-width: 170px;
+}
+
+.logosdaempresa-fundo-valor {
+   font-weight: 400;
+   color: #6c757d;
+}
+
+.logosdaempresa-fundo-info {
+   padding: 0 14px 14px;
+   font-size: 11px;
+   color: #888;
+}
