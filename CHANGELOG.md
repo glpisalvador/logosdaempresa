@@ -2,6 +2,13 @@
 
 O arquivo para download de cada versão está em [Releases](https://github.com/glpisalvador/logosdaempresa/releases).
 
+## 1.4.1 — 2026-09-29
+
+Versão intermediária de 29/09/2026.
+
+
+**Arquivos alterados:** `inc/config.class.php`, `setup.php`
+
 ## 1.4.0 — 2026-09-29
 
 Versão intermediária de 29/09/2026.
