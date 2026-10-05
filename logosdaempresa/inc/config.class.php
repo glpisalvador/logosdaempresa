@@ -223,6 +223,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
 
    const FUNDO_POSICOES = ['direita' => 'Direita', 'esquerda' => 'Esquerda', 'centro' => 'Centro'];
    const FUNDO_ESTILOS  = ['painel' => 'Painel lateral de altura inteira', 'cartao' => 'Cartão flutuante'];
+   const FUNDO_MODOS    = ['tela' => 'Tela inteira (formulário por cima da imagem)', 'area' => 'Área separada ao lado do formulário'];
 
    static function fundoLoginAtivo(): bool {
       return self::getConfig('fundo_login_ativo', '0') === '1';
@@ -260,6 +261,9 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
          'posicao'    => isset(self::FUNDO_POSICOES[$posicao]) ? $posicao : 'direita',
          'estilo'     => isset(self::FUNDO_ESTILOS[$estilo]) ? $estilo : 'painel',
          'escurecer'  => max(0, min(70, (int) self::getConfig('fundo_login_escurecer', '20'))),
+         'modo'       => self::getConfig('fundo_login_modo', 'tela') === 'area' ? 'area' : 'tela',
+         'largura'    => max(30, min(75, (int) self::getConfig('fundo_login_area_largura', '55'))),
+         'moldura'    => self::getConfig('fundo_login_area_moldura', '0') === '1',
       ];
    }
 
@@ -270,6 +274,9 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       self::setConfig('fundo_login_posicao', isset(self::FUNDO_POSICOES[$posicao]) ? $posicao : 'direita');
       self::setConfig('fundo_login_estilo', isset(self::FUNDO_ESTILOS[$estilo]) ? $estilo : 'painel');
       self::setConfig('fundo_login_escurecer', (string) $escurecer);
+      self::setConfig('fundo_login_modo', ($dados['fundo_login_modo'] ?? 'tela') === 'area' ? 'area' : 'tela');
+      self::setConfig('fundo_login_area_largura', (string) max(30, min(75, (int) ($dados['fundo_login_area_largura'] ?? 55))));
+      self::setConfig('fundo_login_area_moldura', !empty($dados['fundo_login_area_moldura']) ? '1' : '0');
       Session::addMessageAfterRedirect(__('Opções da imagem de fundo salvas.', 'logosdaempresa'), true, INFO);
       return true;
    }
@@ -341,6 +348,67 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       return true;
    }
 
+   /**
+    * Formulário dentro do painel: o cartão do GLPI se mistura ao painel e os campos usam a largura toda
+    * (o GLPI usa col-md-5, pensado para o cartão largo de 60rem, e reserva uma coluna para o hook display_login)
+    */
+   static function cssFormularioNoPainel(string $painel): string {
+      $css  = "{$painel} .main-content-card {\n   border: 0 !important;\n   box-shadow: none !important;\n   background: transparent !important;\n}\n";
+      $css .= "{$painel} .main-content-card > .card-body {\n   padding: 8px 0 !important;\n}\n";
+      $css .= "{$painel} .main-content-card form > .row {\n   margin: 0 !important;\n}\n";
+      $css .= "{$painel} .main-content-card form > .row > div {\n";
+      $css .= "   flex: 0 0 100% !important;\n   max-width: 100% !important;\n   width: 100% !important;\n   padding-left: 0 !important;\n   padding-right: 0 !important;\n";
+      $css .= "}\n";
+      $css .= "{$painel} .main-content-card form .card-header h2 {\n   white-space: normal;\n}\n";
+      return $css;
+   }
+
+   /**
+    * Modo "área separada": a imagem ocupa só uma faixa da tela (largura configurável, com moldura opcional)
+    * e o formulário fica na outra parte, sobre o fundo normal do GLPI.
+    */
+   static function cssFundoLoginArea(string $url, array $o, string $escuro, string $pagina, string $painel): string {
+      // A imagem fica do lado oposto ao formulário (centro: formulário à direita)
+      $ladoImagem = $o['posicao'] === 'esquerda' ? 'right' : 'left';
+      $largura    = $o['largura'];
+      $margem     = $o['moldura'] ? 16 : 0;
+      $raio       = $o['moldura'] ? 12 : 0;
+
+      $css  = "body.welcome-anonymous::before {\n";
+      $css .= "   content: '';\n   position: fixed;\n   top: {$margem}px;\n   bottom: {$margem}px;\n   {$ladoImagem}: {$margem}px;\n";
+      $css .= "   width: calc({$largura}% - " . ($margem * 2) . "px);\n";
+      $css .= "   background: linear-gradient(rgba(0, 0, 0, {$escuro}), rgba(0, 0, 0, {$escuro})), #222 url(\"{$url}\") center center / cover no-repeat;\n";
+      $css .= "   border-radius: {$raio}px;\n   pointer-events: none;\n   z-index: 0;\n";
+      $css .= "}\n";
+      $css .= "{$pagina} {\n   position: relative;\n   z-index: 1;\n   min-height: 100vh;\n}\n";
+      $css .= "{$pagina} > div {\n";
+      $css .= "   min-height: 100vh;\n   margin-top: 0 !important;\n   padding: 0 !important;\n";
+      $css .= "   margin-{$ladoImagem}: {$largura}% !important;\n";
+      $css .= "   flex-direction: row !important;\n   align-items: center !important;\n   justify-content: center !important;\n";
+      $css .= "}\n";
+
+      $css .= "{$painel} {\n   margin: 0 auto !important;\n   width: 440px;\n   max-width: calc(100% - 32px) !important;\n";
+      if ($o['estilo'] === 'cartao') {
+         $css .= "   padding: 24px 28px !important;\n   border-radius: 10px;\n";
+         $css .= "   background: rgba(255, 255, 255, 0.97);\n   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);\n";
+      } else {
+         $css .= "   padding: 24px 8px !important;\n";
+      }
+      $css .= "}\n";
+      if ($o['estilo'] === 'cartao') {
+         $css .= ":root[data-glpi-theme-dark=\"1\"] {$painel} {\n   background: rgba(24, 27, 34, 0.94);\n}\n";
+      }
+
+      $css .= self::cssFormularioNoPainel($painel);
+
+      // Telas estreitas: só o formulário
+      $css .= "@media only screen and (max-width: 900px) {\n";
+      $css .= "   body.welcome-anonymous::before { display: none; }\n";
+      $css .= "   {$pagina} > div { margin-left: 0 !important; margin-right: 0 !important; }\n";
+      $css .= "}\n";
+
+      return $css;
+   }
    /** Amostra a imagem procurando pixels transparentes (evita varrer imagens grandes pixel a pixel) */
    static function temTransparencia(\GdImage $imagem): bool {
       $w = imagesx($imagem);
@@ -383,6 +451,10 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       $pagina  = 'body.welcome-anonymous .page-anonymous';
       $painel  = $pagina . ' .container-tight';
 
+      if ($o['modo'] === 'area') {
+         return self::cssFundoLoginArea($url, $o, $escuro, $pagina, $painel);
+      }
+
       $css  = "body.welcome-anonymous {\n";
       $css .= "   background: #222 url(\"{$url}\") center center / cover no-repeat fixed !important;\n";
       $css .= "   min-height: 100vh;\n";
@@ -412,17 +484,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
          $css .= "}\n";
       }
 
-      // O cartão do formulário se mistura ao painel
-      $css .= "{$painel} .main-content-card {\n   border: 0 !important;\n   box-shadow: none !important;\n   background: transparent !important;\n}\n";
-      $css .= "{$painel} .main-content-card > .card-body {\n   padding: 8px 0 !important;\n}\n";
-
-      // Campos na largura toda do painel: o GLPI usa col-md-5 (pensado para o cartão largo de 60rem)
-      // e reserva uma coluna ao lado para o hook display_login; aqui essa coluna vai para baixo
-      $css .= "{$painel} .main-content-card form > .row {\n   margin: 0 !important;\n}\n";
-      $css .= "{$painel} .main-content-card form > .row > div {\n";
-      $css .= "   flex: 0 0 100% !important;\n   max-width: 100% !important;\n   width: 100% !important;\n   padding-left: 0 !important;\n   padding-right: 0 !important;\n";
-      $css .= "}\n";
-      $css .= "{$painel} .main-content-card form .card-header h2 {\n   white-space: normal;\n}\n";
+      $css .= self::cssFormularioNoPainel($painel);
 
       // Tema escuro do GLPI
       $css .= ":root[data-glpi-theme-dark=\"1\"] {$painel} {\n   background: rgba(24, 27, 34, 0.94);\n}\n";
@@ -1252,10 +1314,23 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
 
       echo '<div class="logosdaempresa-fundo">';
 
-      // Prévia: imagem com o painel na posição escolhida
-      echo '<div class="logosdaempresa-fundo-preview logosdaempresa-fundo-' . $opcoes['posicao'] . ' logosdaempresa-fundo-estilo-' . $opcoes['estilo'] . '"'
-         . ($url !== '' ? ' style="background-image:url(\'' . htmlspecialchars($url) . '\')"' : '') . '>';
-      echo '<span class="logosdaempresa-fundo-escuro" style="background:rgba(0,0,0,' . number_format($opcoes['escurecer'] / 100, 2, '.', '') . ')"></span>';
+      // Prévia: imagem (tela inteira ou área separada) com o painel na posição escolhida
+      $escuroPreview = 'rgba(0,0,0,' . number_format($opcoes['escurecer'] / 100, 2, '.', '') . ')';
+      $imagemPreview = $url !== '' ? 'background-image:url(\'' . htmlspecialchars($url) . '\');' : '';
+      $posicaoPreview = $opcoes['modo'] === 'area' && $opcoes['posicao'] === 'centro' ? 'direita' : $opcoes['posicao'];
+      echo '<div class="logosdaempresa-fundo-preview logosdaempresa-fundo-' . $posicaoPreview
+         . ' logosdaempresa-fundo-estilo-' . $opcoes['estilo'] . ' logosdaempresa-fundo-modo-' . $opcoes['modo'] . '"'
+         . ($opcoes['modo'] === 'tela' && $imagemPreview !== '' ? ' style="' . $imagemPreview . '"' : '') . '>';
+      if ($opcoes['modo'] === 'area') {
+         $ladoArea = $posicaoPreview === 'esquerda' ? 'right' : 'left';
+         $margemArea = $opcoes['moldura'] ? 6 : 0;
+         echo '<span class="logosdaempresa-fundo-area" style="' . $imagemPreview . $ladoArea . ':' . $margemArea . 'px;top:' . $margemArea . 'px;bottom:' . $margemArea . 'px;'
+            . 'width:calc(' . $opcoes['largura'] . '% - ' . ($margemArea * 2) . 'px);border-radius:' . ($opcoes['moldura'] ? 6 : 0) . 'px">';
+         echo '<span class="logosdaempresa-fundo-escuro" style="background:' . $escuroPreview . ';border-radius:inherit"></span>';
+         echo '</span>';
+      } else {
+         echo '<span class="logosdaempresa-fundo-escuro" style="background:' . $escuroPreview . '"></span>';
+      }
       if ($url === '') {
          echo '<span class="logosdaempresa-fundo-vazio"><i class="ti ti-photo-off"></i> Nenhuma imagem enviada</span>';
       }
@@ -1291,6 +1366,13 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       echo '<form method="post" action="' . $acao . '" class="logosdaempresa-fundo-opcoes">' . $csrf;
       echo '<input type="hidden" name="save_action" value="salvar_opcoes_fundo">';
 
+      echo '<label>Exibição da imagem<select name="fundo_login_modo" class="form-select form-select-sm" '
+         . 'onchange="this.form.querySelector(\'.logosdaempresa-fundo-so-area\').hidden = this.value !== \'area\'">';
+      foreach (self::FUNDO_MODOS as $valor => $rotulo) {
+         echo '<option value="' . $valor . '"' . ($opcoes['modo'] === $valor ? ' selected' : '') . '>' . $rotulo . '</option>';
+      }
+      echo '</select></label>';
+
       echo '<label>Formulário de login<select name="fundo_login_posicao" class="form-select form-select-sm">';
       foreach (self::FUNDO_POSICOES as $valor => $rotulo) {
          echo '<option value="' . $valor . '"' . ($opcoes['posicao'] === $valor ? ' selected' : '') . '>' . $rotulo . '</option>';
@@ -1308,6 +1390,18 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
          . 'oninput="this.previousElementSibling.textContent=this.value+\'%\'">';
       echo '</label>';
 
+      // Só no modo área separada
+      echo '<div class="logosdaempresa-fundo-so-area"' . ($opcoes['modo'] === 'area' ? '' : ' hidden') . '>';
+      echo '<label>Largura da área da imagem: <span class="logosdaempresa-fundo-valor">' . $opcoes['largura'] . '%</span>';
+      echo '<input type="range" name="fundo_login_area_largura" min="30" max="75" step="5" value="' . $opcoes['largura'] . '" class="form-range" '
+         . 'oninput="this.previousElementSibling.textContent=this.value+\'%\'">';
+      echo '</label>';
+      echo '<label class="logosdaempresa-fundo-check form-check form-switch">';
+      echo '<input type="checkbox" class="form-check-input" name="fundo_login_area_moldura" value="1"' . ($opcoes['moldura'] ? ' checked' : '') . '>';
+      echo '<span class="form-check-label">Moldura (espaçamento e cantos arredondados)</span>';
+      echo '</label>';
+      echo '</div>';
+
       echo '<button type="submit" class="logosdaempresa-btn-upload"><i class="ti ti-device-floppy"></i> Salvar opções</button>';
       echo '</form>';
 
@@ -1315,7 +1409,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       echo '</div>'; // fundo
 
       echo '<div class="logosdaempresa-fundo-info"><i class="ti ti-info-circle"></i> ';
-      echo 'A imagem cobre a tela inteira e o formulário fica no lado escolhido, como nos plugins de tela de login do GLPI. ';
+      echo 'Tela inteira: a imagem cobre a tela e o formulário fica por cima, no lado escolhido. Área separada: a imagem ocupa só a faixa definida e o formulário fica ao lado, sobre o fundo normal do GLPI (em telas estreitas, só o formulário). ';
       echo 'Painel de login com 520 px (cartão: 480 px). Recomendado: 1920 x 1080 px, JPG, até 2 MB (limite do servidor). Imagens maiores que 2560 x 1600 são reduzidas. ';
       echo 'Ativar o fundo desativa o "Layout lateral com imagem" (e vice-versa). No celular o formulário ocupa a largura toda.';
       echo '</div>';
