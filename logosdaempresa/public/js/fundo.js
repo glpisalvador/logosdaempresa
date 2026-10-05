@@ -12,15 +12,18 @@
       return;
    }
 
-   var area   = document.getElementById('logosdaempresa-previa-area');
-   var escuro = document.getElementById('logosdaempresa-previa-escuro');
-   var vazio  = document.getElementById('logosdaempresa-previa-vazio');
-   var video  = document.getElementById('logosdaempresa-previa-video');
-   var salvar = document.getElementById('logosdaempresa-fundo-salvar');
-   var soArea = form.querySelector('.logosdaempresa-fundo-so-area');
+   var midia    = document.getElementById('logosdaempresa-previa-midia');
+   var login    = document.getElementById('logosdaempresa-previa-login');
+   var escuro   = document.getElementById('logosdaempresa-previa-escuro');
+   var vazio    = document.getElementById('logosdaempresa-previa-vazio');
+   var video    = document.getElementById('logosdaempresa-previa-video');
+   var salvar   = document.getElementById('logosdaempresa-fundo-salvar');
+   var pendente = document.getElementById('logosdaempresa-fp-pendente');
+   var soCaixa  = document.getElementById('logosdaempresa-fp-caixa');
 
    // ---------------------------------------------------------------------
-   // Prévia ao vivo
+   // Prévia ao vivo. Cada peça recebe posição e tamanho calculados (em % da
+   // prévia) e limitados à área: nada fica de fora ao trocar modo ou estilo.
    // ---------------------------------------------------------------------
    function valor(nome) {
       var el = form.elements[nome];
@@ -37,40 +40,60 @@
 
    var estadoSalvo = estadoAtual();
 
+   function limitar(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+   }
+
+   function posicionar(el, r) {
+      el.style.left   = r.x + '%';
+      el.style.top    = r.y + '%';
+      el.style.width  = r.w + '%';
+      el.style.height = r.h + '%';
+   }
+
    function atualizarPrevia() {
-      var tipo    = valor('fundo_login_tipo') || 'imagem';
+      var tipo    = valor('fundo_login_tipo') === 'video' ? 'video' : 'imagem';
       var posicao = valor('fundo_login_posicao') || 'direita';
-      var modo    = valor('fundo_login_modo') === 'caixa' ? 'caixa' : 'tela';
-      var estilo  = valor('fundo_login_estilo') || 'painel';
+      var caixa   = valor('fundo_login_modo') === 'caixa';
+      var painel  = valor('fundo_login_estilo') !== 'cartao';
       var imagem  = previa.getAttribute('data-imagem') || '';
       var urlVid  = previa.getAttribute('data-video') || '';
       var usarVideo = tipo === 'video' && urlVid !== '' && !!video;
-      var fundo   = imagem !== '' ? 'url("' + imagem.replace(/"/g, '\\"') + '")' : '';
 
-      previa.className = 'logosdaempresa-fundo-preview logosdaempresa-fundo-modo-' + modo;
-      area.className = 'logosdaempresa-fundo-' + modo + ' logosdaempresa-fundo-' + posicao
-         + ' logosdaempresa-fundo-estilo-' + estilo;
-
-      // A imagem aparece também com vídeo: é a capa enquanto ele carrega
-      previa.style.backgroundImage = modo === 'tela' ? fundo : '';
-      area.style.backgroundImage   = modo === 'caixa' ? fundo : '';
-
-      if (modo === 'caixa') {
-         area.style.width  = valor('fundo_login_caixa_largura') + '%';
-         area.style.height = valor('fundo_login_caixa_altura') + '%';
-         area.style.borderRadius = valor('fundo_login_caixa_cantos') === '1' ? '6px' : '0';
-      } else {
-         area.style.width = area.style.height = area.style.borderRadius = '';
+      // Área do fundo: tela inteira ou caixa centralizada
+      var fundo = { x: 0, y: 0, w: 100, h: 100 };
+      if (caixa) {
+         fundo.w = limitar(parseInt(valor('fundo_login_caixa_largura'), 10) || 80, 50, 95);
+         fundo.h = limitar(parseInt(valor('fundo_login_caixa_altura'), 10) || 75, 50, 90);
+         fundo.x = (100 - fundo.w) / 2;
+         fundo.y = (100 - fundo.h) / 2;
       }
+      posicionar(midia, fundo);
+      midia.classList.toggle('logosdaempresa-fp-midia-caixa', caixa);
+      midia.style.borderRadius = caixa && valor('fundo_login_caixa_cantos') === '1' ? '6px' : '0';
+      // A imagem aparece também com vídeo: é a capa enquanto ele carrega
+      midia.style.backgroundImage = imagem !== '' ? 'url("' + imagem.replace(/"/g, '\\"') + '")' : '';
+
+      // Formulário dentro da área do fundo
+      var f = {};
+      f.w = fundo.w * (painel ? (caixa ? 0.36 : 0.32) : (caixa ? 0.32 : 0.28));
+      f.h = painel ? fundo.h : fundo.h * 0.74;
+      var margem = painel ? 0 : fundo.w * 0.05;
+      if (posicao === 'esquerda') {
+         f.x = fundo.x + margem;
+      } else if (posicao === 'centro') {
+         f.x = fundo.x + (fundo.w - f.w) / 2;
+      } else {
+         f.x = fundo.x + fundo.w - f.w - margem;
+      }
+      f.y = fundo.y + (fundo.h - f.h) / 2;
+      posicionar(login, f);
+      login.classList.toggle('logosdaempresa-fp-login-cartao', !painel);
 
       escuro.style.background = 'rgba(0,0,0,' + ((parseInt(valor('fundo_login_escurecer'), 10) || 0) / 100) + ')';
 
       if (video) {
          video.hidden = !usarVideo;
-         var dono = modo === 'caixa' ? area : previa;
-         if (usarVideo && video.parentNode !== dono) {
-            dono.insertBefore(video, dono.firstChild);
-         }
          if (usarVideo) {
             var p = video.play();
             if (p && p.catch) { p.catch(function () { }); }
@@ -85,24 +108,23 @@
       vazio.hidden = faltando === '';
       vazio.querySelector('span').textContent = faltando;
 
-      if (soArea) { soArea.hidden = modo !== 'caixa'; }
+      if (soCaixa) { soCaixa.hidden = !caixa; }
 
-      var pendente = estadoAtual() !== estadoSalvo;
-      salvar.classList.toggle('logosdaempresa-pendente', pendente);
-      salvar.querySelector('span').textContent = pendente ? 'Salvar opções (alterações não salvas)' : 'Salvar opções';
+      var mudou = estadoAtual() !== estadoSalvo;
+      pendente.hidden = !mudou;
+      salvar.classList.toggle('logosdaempresa-pendente', mudou);
    }
 
    form.addEventListener('input', function (ev) {
       var alvo = ev.target;
       if (alvo && alvo.type === 'range') {
-         var rotulo = alvo.parentNode.querySelector('.logosdaempresa-fundo-valor');
+         var rotulo = alvo.parentNode.querySelector('.logosdaempresa-fp-valor');
          if (rotulo) { rotulo.textContent = alvo.value + (rotulo.getAttribute('data-sufixo') || ''); }
       }
       atualizarPrevia();
    });
    form.addEventListener('change', atualizarPrevia);
    atualizarPrevia();
-
    // ---------------------------------------------------------------------
    // Envio do vídeo em partes
    // ---------------------------------------------------------------------

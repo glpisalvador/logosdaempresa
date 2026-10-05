@@ -295,7 +295,9 @@
    font-size: 11px;
    color: #6c757d;
 }
-/* Imagem de fundo da tela de login */
+/* ==========================================================================
+ * Fundo da tela de login (imagem ou vídeo)
+ * ========================================================================== */
 .logosdaempresa-selo-ativo {
    background: rgba(25, 135, 84, 0.1) !important;
    color: #198754 !important;
@@ -304,193 +306,18 @@
    font-size: 10px;
 }
 
-.logosdaempresa-fundo {
+.logosdaempresa-selo-inativo {
+   background: rgba(108, 117, 125, 0.1) !important;
+   color: #6c757d !important;
+   padding: 2px 10px;
+   border-radius: 3px;
+   font-size: 10px;
+}
+
+.logosdaempresa-fundo-aviso {
    display: flex;
-   gap: 18px;
-   flex-wrap: wrap;
-   padding: 14px;
-}
-
-.logosdaempresa-fundo-preview {
-   position: relative;
-   width: 320px;
-   height: 180px;
-   flex-shrink: 0;
-   border: 1px solid #dee2e6;
-   border-radius: 4px;
-   overflow: hidden;
-   background: #e9ecef center / cover no-repeat;
-   display: flex;
-   align-items: center;
-}
-
-.logosdaempresa-fundo-escuro {
-   position: absolute;
-   inset: 0;
-}
-
-.logosdaempresa-fundo-vazio {
-   position: absolute;
-   top: 8px;
-   left: 10px;
-   font-size: 11px;
-   color: #6c757d;
-}
-
-.logosdaempresa-fundo-painel {
-   position: relative;
-   z-index: 1;
-   display: flex;
-   flex-direction: column;
-   align-items: center;
-   justify-content: center;
-   gap: 6px;
-   width: 90px;
-   background: rgba(255, 255, 255, 0.95);
-   box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
-   color: #6c757d;
-   font-size: 14px;
-}
-
-.logosdaempresa-fundo-painel b {
-   display: block;
-   width: 60px;
-   height: 7px;
-   border-radius: 2px;
-   background: #dee2e6;
-}
-
-.logosdaempresa-fundo-botao {
-   display: block;
-   width: 60px;
-   height: 9px;
-   border-radius: 2px;
-   background: #e5a54b;
-}
-
-.logosdaempresa-fundo-estilo-painel .logosdaempresa-fundo-painel {
-   height: 100%;
-}
-
-.logosdaempresa-fundo-estilo-cartao .logosdaempresa-fundo-painel {
-   height: 110px;
-   border-radius: 5px;
-   margin: 0 16px;
-}
-
-.logosdaempresa-fundo-direita {
-   justify-content: flex-end;
-}
-
-.logosdaempresa-fundo-esquerda {
-   justify-content: flex-start;
-}
-
-.logosdaempresa-fundo-centro {
-   justify-content: center;
-}
-
-.logosdaempresa-fundo-controles {
-   display: flex;
-   flex-direction: column;
-   gap: 14px;
-   flex: 1;
-   min-width: 260px;
-}
-
-.logosdaempresa-fundo-opcoes {
-   display: flex;
-   flex-wrap: wrap;
-   align-items: flex-end;
-   gap: 18px;
-   margin: 0;
-}
-
-.logosdaempresa-fundo-opcoes label {
-   display: flex;
-   flex-direction: column;
-   gap: 6px;
-   font-size: 12px;
-   font-weight: 600;
-   color: #495057;
-   min-width: 170px;
-}
-
-.logosdaempresa-fundo-valor {
-   font-weight: 400;
-   color: #6c757d;
-}
-
-.logosdaempresa-fundo-info {
-   padding: 0 14px 14px;
-   font-size: 11px;
-   color: #888;
-}
-/* Prévia: tela inteira ou caixa com o login dentro */
-.logosdaempresa-fundo-preview {
-   justify-content: center;
-}
-
-.logosdaempresa-fundo-modo-caixa {
-   background-color: #f5f7fa;
-}
-
-.logosdaempresa-fundo-tela,
-.logosdaempresa-fundo-caixa {
-   display: flex;
-   align-items: stretch;
-   overflow: hidden;
-}
-
-.logosdaempresa-fundo-tela {
-   position: absolute;
-   inset: 0;
-}
-
-.logosdaempresa-fundo-caixa {
-   position: relative;
-   background: #adb5bd center / cover no-repeat;
-   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-}
-
-.logosdaempresa-fundo-estilo-cartao .logosdaempresa-fundo-painel {
-   align-self: center;
-}
-
-.logosdaempresa-fundo-caixa .logosdaempresa-fundo-painel {
-   width: 64px;
-}
-
-.logosdaempresa-fundo-caixa.logosdaempresa-fundo-estilo-cartao .logosdaempresa-fundo-painel {
-   height: 70%;
-   margin: 0 10px;
-}
-
-.logosdaempresa-fundo-caixa .logosdaempresa-fundo-painel b,
-.logosdaempresa-fundo-caixa .logosdaempresa-fundo-botao {
-   width: 42px;
-}
-
-.logosdaempresa-fundo-so-area {
-   display: flex;
-   flex-wrap: wrap;
-   align-items: flex-end;
-   gap: 18px;
-}
-
-.logosdaempresa-fundo-so-area[hidden] {
-   display: none !important;
-}
-
-.logosdaempresa-fundo-opcoes .logosdaempresa-fundo-check {
-   flex-direction: row;
    align-items: center;
    gap: 8px;
-   font-weight: 400;
-   padding-bottom: 6px;
-}
-/* Fundo da tela de login: vídeo, posição em botões, aviso e envio em partes */
-.logosdaempresa-fundo-aviso {
    margin: 14px 14px 0;
    padding: 8px 12px;
    font-size: 12px;
@@ -498,102 +325,246 @@
    background: rgba(255, 193, 7, 0.1);
    border: 1px solid rgba(255, 193, 7, 0.3);
    border-radius: 4px;
-   display: flex;
-   align-items: center;
-   gap: 8px;
 }
 
-.logosdaempresa-fundo-video {
+/* Duas colunas: prévia + arquivos | opções */
+.logosdaempresa-fp {
+   display: grid;
+   grid-template-columns: 340px minmax(0, 1fr);
+   gap: 24px;
+   padding: 16px;
+   align-items: start;
+}
+
+.logosdaempresa-fp-lado {
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   min-width: 0;
+}
+
+/* ---- Prévia ---- */
+.logosdaempresa-fp-previa {
+   position: relative;
+   width: 100%;
+   aspect-ratio: 16 / 9;
+   overflow: hidden;
+   background: #eef1f5;
+   border: 1px solid #dee2e6;
+   border-radius: 4px;
+}
+
+.logosdaempresa-fp-midia,
+.logosdaempresa-fp-login {
+   position: absolute;
+   box-sizing: border-box;
+   transition: left 0.2s ease, top 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.logosdaempresa-fp-midia {
+   overflow: hidden;
+   background: #2b2f36 center / cover no-repeat;
+}
+
+.logosdaempresa-fp-midia-caixa {
+   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.logosdaempresa-fp-midia video {
    position: absolute;
    inset: 0;
    width: 100%;
    height: 100%;
    object-fit: cover;
-   pointer-events: none;
 }
 
-.logosdaempresa-fundo-video[hidden] {
+.logosdaempresa-fp-midia video[hidden] {
    display: none;
 }
 
-.logosdaempresa-fundo-vazio[hidden] {
-   display: none;
+.logosdaempresa-fp-escuro {
+   position: absolute;
+   inset: 0;
 }
 
-.logosdaempresa-fundo-vazio {
-   z-index: 1;
-}
-
-.logosdaempresa-fundo-campo {
+.logosdaempresa-fp-login {
+   z-index: 2;
    display: flex;
    flex-direction: column;
-   gap: 6px;
+   align-items: center;
+   justify-content: center;
+   gap: 5px;
+   padding: 6px;
+   overflow: hidden;
+   background: rgba(255, 255, 255, 0.95);
+   box-shadow: 0 0 8px rgba(0, 0, 0, 0.25);
+   color: #6c757d;
    font-size: 12px;
-   font-weight: 600;
-   color: #495057;
 }
 
-.logosdaempresa-segmentos {
-   display: inline-flex;
+.logosdaempresa-fp-login-cartao {
+   border-radius: 4px;
+}
+
+.logosdaempresa-fp-login b,
+.logosdaempresa-fp-login em {
+   display: block;
+   width: 72%;
+   height: 5px;
+   border-radius: 2px;
+   background: #dee2e6;
+}
+
+.logosdaempresa-fp-login em {
+   height: 7px;
+   background: #e5a54b;
+}
+
+.logosdaempresa-fp-vazio {
+   position: absolute;
+   left: 8px;
+   top: 6px;
+   z-index: 3;
+   display: flex;
+   align-items: center;
+   gap: 5px;
+   padding: 2px 8px;
+   font-size: 11px;
+   color: #fff;
+   background: rgba(0, 0, 0, 0.55);
+   border-radius: 3px;
+}
+
+.logosdaempresa-fp-vazio[hidden] {
+   display: none;
+}
+
+.logosdaempresa-fp-legenda {
+   font-size: 11px;
+   color: #999;
+   text-align: center;
+   margin-top: -4px;
+}
+
+/* ---- Arquivos ---- */
+.logosdaempresa-fp-arquivos {
+   display: flex;
+   flex-direction: column;
    border: 1px solid #dee2e6;
    border-radius: 4px;
    overflow: hidden;
 }
 
-.logosdaempresa-segmento {
-   margin: 0;
-   cursor: pointer;
+.logosdaempresa-fp-arquivo {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   padding: 8px 10px;
+   background: #fff;
 }
 
-.logosdaempresa-segmento + .logosdaempresa-segmento {
-   border-left: 1px solid #dee2e6;
+.logosdaempresa-fp-arquivo + .logosdaempresa-fp-arquivo {
+   border-top: 1px solid #f0f0f0;
 }
 
-.logosdaempresa-segmento input {
-   position: absolute;
-   opacity: 0;
-   pointer-events: none;
+.logosdaempresa-fp-arquivo-icone {
+   font-size: 18px;
+   color: #6c757d;
+   flex-shrink: 0;
 }
 
-.logosdaempresa-segmento span {
+.logosdaempresa-fp-arquivo-info {
+   display: flex;
+   flex-direction: column;
+   min-width: 0;
+   flex: 1;
+}
+
+.logosdaempresa-fp-arquivo-info b {
+   font-size: 12px;
+   font-weight: 600;
+   color: #495057;
+}
+
+.logosdaempresa-fp-arquivo-info span {
+   font-size: 11px;
+   color: #999;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+
+.logosdaempresa-fp-arquivo-acoes {
    display: inline-flex;
    align-items: center;
    gap: 6px;
-   padding: 5px 12px;
-   font-size: 12px;
+   flex-shrink: 0;
+}
+
+.logosdaempresa-fp-arquivo-acoes form,
+.logosdaempresa-fp-ativar {
+   margin: 0;
+}
+
+.logosdaempresa-fp-btn {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   gap: 5px;
+   height: 28px;
+   padding: 0 10px;
+   margin: 0;
+   font-size: 11px;
    font-weight: 600;
-   color: #6c757d;
-   background: #fff;
+   color: #495057;
+   background: #f8f9fa;
+   border: 1px solid #dee2e6;
+   border-radius: 4px;
+   cursor: pointer;
+   white-space: nowrap;
    transition: all 0.15s ease-in-out;
 }
 
-.logosdaempresa-segmento:hover span {
+.logosdaempresa-fp-btn:hover {
    background: #fff3cd;
+   border-color: #e0b830;
 }
 
-.logosdaempresa-segmento input:checked + span {
-   background: #ffc107;
-   color: #333;
+.logosdaempresa-fp-btn-perigo {
+   width: 28px;
+   padding: 0;
+   color: #b02a37;
 }
 
-.logosdaempresa-segmento input:focus-visible + span {
-   box-shadow: inset 0 0 0 2px rgba(240, 201, 70, 0.6);
+.logosdaempresa-fp-btn-perigo:hover {
+   background: rgba(220, 53, 69, 0.08);
+   border-color: rgba(220, 53, 69, 0.4);
 }
 
-.logosdaempresa-pendente {
-   box-shadow: 0 0 0 3px rgba(240, 201, 70, 0.35);
+.logosdaempresa-fp-btn-bloco {
+   width: 100%;
+   height: 32px;
 }
 
-.logosdaempresa-desabilitado {
-   pointer-events: none;
-   opacity: 0.6;
+.logosdaempresa-fp-btn-destaque {
+   color: #fff;
+   background: #e5a54b;
+   border-color: #e5a54b;
 }
 
+.logosdaempresa-fp-btn-destaque:hover {
+   background: #d9963c;
+   border-color: #d9963c;
+}
+
+/* ---- Envio do vídeo ---- */
 .logosdaempresa-video-progresso {
    display: flex;
    flex-direction: column;
    gap: 6px;
-   max-width: 420px;
+   padding: 8px 10px;
+   border-top: 1px solid #f0f0f0;
+   background: #f8f9fa;
 }
 
 .logosdaempresa-video-progresso[hidden] {
@@ -604,14 +575,14 @@
    display: flex;
    justify-content: space-between;
    gap: 12px;
-   font-size: 12px;
+   font-size: 11px;
    color: #495057;
 }
 
 .logosdaempresa-video-barra {
-   height: 8px;
+   height: 6px;
    background: #e9ecef;
-   border-radius: 4px;
+   border-radius: 3px;
    overflow: hidden;
 }
 
@@ -630,8 +601,217 @@
 .logosdaempresa-video-erro .logosdaempresa-video-barra i {
    background: rgba(220, 53, 69, 0.6);
 }
-.logosdaempresa-fundo-opcoes .logosdaempresa-segmento {
-   display: block;
+
+.logosdaempresa-desabilitado {
+   pointer-events: none;
+   opacity: 0.6;
+}
+
+/* ---- Opções ---- */
+.logosdaempresa-fp-opcoes {
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 16px 20px;
+   margin: 0;
+   align-content: start;
+}
+
+.logosdaempresa-fp-campo {
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
    min-width: 0;
-   gap: 0;
+}
+
+.logosdaempresa-fp-rotulo {
+   margin: 0;
+   font-size: 12px;
+   font-weight: 600;
+   color: #495057;
+}
+
+.logosdaempresa-fp-rotulo-linha {
+   display: flex;
+   align-items: baseline;
+   justify-content: space-between;
+   gap: 8px;
+}
+
+.logosdaempresa-fp-valor {
+   font-size: 11px;
+   color: #6c757d;
+   white-space: nowrap;
+}
+
+.logosdaempresa-fp-opcoes .form-range {
+   margin: 0;
+}
+
+.logosdaempresa-fp-opcoes .form-select {
+   width: 100%;
+}
+
+/* Botões segmentados (tipo e posição) */
+.logosdaempresa-segmentos {
+   display: flex;
+   width: 100%;
+   border: 1px solid #dee2e6;
+   border-radius: 4px;
+   overflow: hidden;
+}
+
+.logosdaempresa-segmento {
+   flex: 1 1 0;
+   min-width: 0;
+   margin: 0;
+   cursor: pointer;
+}
+
+.logosdaempresa-segmento + .logosdaempresa-segmento {
+   border-left: 1px solid #dee2e6;
+}
+
+.logosdaempresa-segmento input {
+   position: absolute;
+   opacity: 0;
+   pointer-events: none;
+}
+
+.logosdaempresa-segmento span {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   gap: 6px;
+   height: 31px;
+   padding: 0 8px;
+   font-size: 12px;
+   font-weight: 600;
+   color: #6c757d;
+   background: #fff;
+   white-space: nowrap;
+   transition: all 0.15s ease-in-out;
+}
+
+.logosdaempresa-segmento:hover span {
+   background: #fff3cd;
+}
+
+.logosdaempresa-segmento input:checked + span {
+   background: #ffc107;
+   color: #333;
+}
+
+.logosdaempresa-segmento input:focus-visible + span {
+   box-shadow: inset 0 0 0 2px rgba(240, 201, 70, 0.6);
+}
+
+/* Tamanho da caixa (só no modo caixa) */
+.logosdaempresa-fp-caixa {
+   grid-column: 1 / -1;
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 12px 20px;
+   padding: 12px 14px;
+   background: #f8f9fa;
+   border: 1px solid #dee2e6;
+   border-radius: 4px;
+}
+
+.logosdaempresa-fp-caixa[hidden] {
+   display: none;
+}
+
+.logosdaempresa-fp-caixa-titulo {
+   grid-column: 1 / -1;
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   font-size: 12px;
+   font-weight: 600;
+   color: #495057;
+}
+
+.logosdaempresa-fp-switch {
+   grid-column: 1 / -1;
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   margin: 0;
+   font-size: 12px;
+   color: #495057;
+}
+
+.logosdaempresa-fp-switch .form-check-input:checked {
+   background-color: #f0c946;
+   border-color: #e0b830;
+}
+
+/* Rodapé do formulário */
+.logosdaempresa-fp-rodape {
+   grid-column: 1 / -1;
+   display: flex;
+   align-items: center;
+   justify-content: flex-end;
+   gap: 12px;
+   padding-top: 12px;
+   border-top: 1px solid #f0f0f0;
+}
+
+.logosdaempresa-fp-pendente {
+   display: inline-flex;
+   align-items: center;
+   gap: 5px;
+   font-size: 11px;
+   color: #664d03;
+}
+
+.logosdaempresa-fp-pendente[hidden] {
+   display: none;
+}
+
+.logosdaempresa-fp-salvar {
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   height: 32px;
+   padding: 0 16px;
+   font-size: 12px;
+   font-weight: 600;
+   color: #fff;
+   background: #e5a54b;
+   border: 1px solid #e5a54b;
+   border-radius: 4px;
+   cursor: pointer;
+}
+
+.logosdaempresa-fp-salvar:hover {
+   background: #d9963c;
+   border-color: #d9963c;
+}
+
+.logosdaempresa-pendente {
+   box-shadow: 0 0 0 3px rgba(240, 201, 70, 0.35);
+}
+
+.logosdaempresa-fundo-info {
+   padding: 0 16px 14px;
+   font-size: 11px;
+   color: #888;
+}
+
+/* Telas estreitas: uma coluna */
+@media (max-width: 991px) {
+   .logosdaempresa-fp {
+      grid-template-columns: minmax(0, 1fr);
+   }
+   .logosdaempresa-fp-lado {
+      max-width: 420px;
+   }
+}
+
+@media (max-width: 575px) {
+   .logosdaempresa-fp-opcoes,
+   .logosdaempresa-fp-caixa {
+      grid-template-columns: minmax(0, 1fr);
+   }
 }
