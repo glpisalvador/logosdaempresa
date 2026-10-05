@@ -426,26 +426,49 @@
    font-size: 11px;
    color: #888;
 }
-/* Modo área separada: prévia e opções */
-.logosdaempresa-fundo-modo-area {
+/* Prévia: tela inteira ou caixa com o login dentro */
+.logosdaempresa-fundo-preview {
+   justify-content: center;
+}
+
+.logosdaempresa-fundo-modo-caixa {
    background-color: #f5f7fa;
 }
 
-.logosdaempresa-fundo-area {
-   position: absolute;
-   background: #adb5bd center / cover no-repeat;
+.logosdaempresa-fundo-tela,
+.logosdaempresa-fundo-caixa {
+   display: flex;
+   align-items: stretch;
    overflow: hidden;
 }
 
-.logosdaempresa-fundo-modo-area.logosdaempresa-fundo-direita,
-.logosdaempresa-fundo-modo-area.logosdaempresa-fundo-esquerda {
-   padding: 0 8%;
+.logosdaempresa-fundo-tela {
+   position: absolute;
+   inset: 0;
 }
 
-.logosdaempresa-fundo-modo-area.logosdaempresa-fundo-estilo-painel .logosdaempresa-fundo-painel {
-   height: 110px;
-   box-shadow: none;
-   background: transparent;
+.logosdaempresa-fundo-caixa {
+   position: relative;
+   background: #adb5bd center / cover no-repeat;
+   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.logosdaempresa-fundo-estilo-cartao .logosdaempresa-fundo-painel {
+   align-self: center;
+}
+
+.logosdaempresa-fundo-caixa .logosdaempresa-fundo-painel {
+   width: 64px;
+}
+
+.logosdaempresa-fundo-caixa.logosdaempresa-fundo-estilo-cartao .logosdaempresa-fundo-painel {
+   height: 70%;
+   margin: 0 10px;
+}
+
+.logosdaempresa-fundo-caixa .logosdaempresa-fundo-painel b,
+.logosdaempresa-fundo-caixa .logosdaempresa-fundo-botao {
+   width: 42px;
 }
 
 .logosdaempresa-fundo-so-area {
