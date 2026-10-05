@@ -426,3 +426,43 @@
    font-size: 11px;
    color: #888;
 }
+/* Modo área separada: prévia e opções */
+.logosdaempresa-fundo-modo-area {
+   background-color: #f5f7fa;
+}
+
+.logosdaempresa-fundo-area {
+   position: absolute;
+   background: #adb5bd center / cover no-repeat;
+   overflow: hidden;
+}
+
+.logosdaempresa-fundo-modo-area.logosdaempresa-fundo-direita,
+.logosdaempresa-fundo-modo-area.logosdaempresa-fundo-esquerda {
+   padding: 0 8%;
+}
+
+.logosdaempresa-fundo-modo-area.logosdaempresa-fundo-estilo-painel .logosdaempresa-fundo-painel {
+   height: 110px;
+   box-shadow: none;
+   background: transparent;
+}
+
+.logosdaempresa-fundo-so-area {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: flex-end;
+   gap: 18px;
+}
+
+.logosdaempresa-fundo-so-area[hidden] {
+   display: none !important;
+}
+
+.logosdaempresa-fundo-opcoes .logosdaempresa-fundo-check {
+   flex-direction: row;
+   align-items: center;
+   gap: 8px;
+   font-weight: 400;
+   padding-bottom: 6px;
+}
