@@ -2,6 +2,14 @@
 
 O arquivo para download de cada versão está em [Releases](https://github.com/glpisalvador/logosdaempresa/releases).
 
+## 1.7.1 — 2026-09-29
+
+Versão atual.
+
+- Logos personalizados, cor do tema e tela de login com imagem lateral ou fundo com imagem ou **vídeo MP4** (até 100 MB, enviado em partes).
+- Prévia ao vivo das opções do fundo antes de salvar.
+- Nada é carregado sem configuração, e os arquivos do GLPI não são alterados.
+
 ## 1.7.0 — 2026-09-29
 
 Versão intermediária de 29/09/2026.

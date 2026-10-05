@@ -222,8 +222,8 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
    // =========================================================================
 
    const FUNDO_POSICOES = ['direita' => 'Direita', 'esquerda' => 'Esquerda', 'centro' => 'Centro'];
-   const FUNDO_ESTILOS  = ['painel' => 'Painel lateral de altura inteira', 'cartao' => 'Cartão flutuante'];
-   const FUNDO_MODOS    = ['tela' => 'Tela inteira (formulário por cima da imagem)', 'caixa' => 'Caixa (imagem numa área, login dentro dela)'];
+   const FUNDO_ESTILOS  = ['painel' => 'Painel de altura inteira', 'cartao' => 'Cartão flutuante'];
+   const FUNDO_MODOS    = ['tela' => 'Tela inteira', 'caixa' => 'Caixa (como um modal)'];
 
    static function fundoLoginAtivo(): bool {
       return self::getConfig('fundo_login_ativo', '0') === '1';
@@ -1466,6 +1466,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       $opcoes   = self::opcoesFundoLogin();
       $midia    = self::midiaFundoDisponivel();
       $e        = fn($t) => htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8');
+      $mb       = fn(?string $c) => $c !== null ? number_format(filesize($c) / 1048576, 1, ',', '.') . ' MB' : '';
 
       echo '<div class="logosdaempresa-grupo">';
 
@@ -1473,72 +1474,76 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       echo '<i class="ti ti-photo"></i> Fundo da tela de login (imagem ou vídeo)';
       if ($ativo && $midia) {
          echo '<span class="logosdaempresa-tamanho logosdaempresa-selo-ativo">ATIVO</span>';
+      } elseif ($url !== '' || $urlVideo !== '') {
+         echo '<span class="logosdaempresa-tamanho logosdaempresa-selo-inativo">DESATIVADO</span>';
       }
       echo '</div>';
 
       // Sem este aviso, mudar as opções com o fundo desativado parecia não ter efeito
       if (!$ativo && ($url !== '' || $urlVideo !== '')) {
-         echo '<div class="logosdaempresa-fundo-aviso"><i class="ti ti-alert-triangle"></i> ';
-         echo 'O fundo está <b>desativado</b>: as opções abaixo só aparecem na tela de login depois de clicar em <b>Ativar na tela de login</b>.';
-         echo '</div>';
+         echo '<div class="logosdaempresa-fundo-aviso"><i class="ti ti-alert-triangle"></i><span>';
+         echo 'O fundo está <b>desativado</b>: as opções só aparecem na tela de login depois de clicar em <b>Ativar na tela de login</b>.';
+         echo '</span></div>';
       }
 
-      echo '<div class="logosdaempresa-fundo">';
+      echo '<div class="logosdaempresa-fp">';
 
-      // Prévia ao vivo (o fundo.js atualiza ao mexer nas opções, antes de salvar)
-      echo '<div class="logosdaempresa-fundo-preview logosdaempresa-fundo-modo-' . $opcoes['modo'] . '" id="logosdaempresa-previa"'
-         . ' data-imagem="' . $e($url) . '" data-video="' . $e($urlVideo) . '">';
+      // ================= Coluna 1: prévia e arquivos =================
+      echo '<div class="logosdaempresa-fp-lado">';
+
+      // Prévia: cada peça é posicionada pelo fundo.js dentro da tela (nada sai da área)
+      echo '<div class="logosdaempresa-fp-previa" id="logosdaempresa-previa" data-imagem="' . $e($url) . '" data-video="' . $e($urlVideo) . '">';
+      echo '<div class="logosdaempresa-fp-midia" id="logosdaempresa-previa-midia">';
       if ($urlVideo !== '') {
-         echo '<video class="logosdaempresa-fundo-video" id="logosdaempresa-previa-video" src="' . $e($urlVideo) . '" muted loop autoplay playsinline preload="metadata"'
-            . ($opcoes['tipo'] === 'video' ? '' : ' hidden') . '></video>';
+         echo '<video id="logosdaempresa-previa-video" src="' . $e($urlVideo) . '" muted loop autoplay playsinline preload="metadata" hidden></video>';
       }
-      echo '<span class="logosdaempresa-fundo-' . ($opcoes['modo'] === 'caixa' ? 'caixa' : 'tela')
-         . ' logosdaempresa-fundo-' . $opcoes['posicao'] . ' logosdaempresa-fundo-estilo-' . $opcoes['estilo'] . '" id="logosdaempresa-previa-area">';
-      echo '<span class="logosdaempresa-fundo-escuro" id="logosdaempresa-previa-escuro"></span>';
-      echo '<span class="logosdaempresa-fundo-vazio" id="logosdaempresa-previa-vazio" hidden><i class="ti ti-photo-off"></i> <span></span></span>';
-      echo '<span class="logosdaempresa-fundo-painel"><i class="ti ti-lock"></i><b></b><b></b><i class="logosdaempresa-fundo-botao"></i></span>';
-      echo '</span>';
+      echo '<span class="logosdaempresa-fp-escuro" id="logosdaempresa-previa-escuro"></span>';
       echo '</div>';
+      echo '<div class="logosdaempresa-fp-login" id="logosdaempresa-previa-login"><i class="ti ti-lock"></i><b></b><b></b><em></em></div>';
+      echo '<div class="logosdaempresa-fp-vazio" id="logosdaempresa-previa-vazio" hidden><i class="ti ti-photo-off"></i><span></span></div>';
+      echo '</div>';
+      echo '<div class="logosdaempresa-fp-legenda">Prévia da tela de login · atualiza enquanto você muda as opções</div>';
 
-      echo '<div class="logosdaempresa-fundo-controles">';
+      // Arquivos
+      echo '<div class="logosdaempresa-fp-arquivos">';
 
-      // Arquivos: imagem, vídeo e ativação
-      echo '<div class="logosdaempresa-acoes">';
-      echo '<form method="post" enctype="multipart/form-data" action="' . $acao . '" style="margin:0">' . $csrf;
+      // Imagem
+      echo '<div class="logosdaempresa-fp-arquivo">';
+      echo '<i class="ti ti-photo logosdaempresa-fp-arquivo-icone"></i>';
+      echo '<div class="logosdaempresa-fp-arquivo-info"><b>Imagem</b><span>'
+         . ($url !== '' ? 'Enviada · ' . $mb(self::caminhoFundoLogin()) : 'Nenhuma enviada') . '</span></div>';
+      echo '<div class="logosdaempresa-fp-arquivo-acoes">';
+      echo '<form method="post" enctype="multipart/form-data" action="' . $acao . '">' . $csrf;
       echo '<input type="hidden" name="save_action" value="upload_fundo_login">';
-      echo '<label class="logosdaempresa-btn-upload"><i class="ti ti-photo-up"></i> ' . ($url !== '' ? 'Trocar imagem' : 'Enviar imagem');
-      echo '<input type="file" name="fundo_login" accept="image/jpeg,image/png,image/webp" onchange="this.closest(\'form\').submit()" style="display:none">';
-      echo '</label>';
-      echo '</form>';
+      echo '<label class="logosdaempresa-fp-btn"><i class="ti ti-upload"></i> ' . ($url !== '' ? 'Trocar' : 'Enviar');
+      echo '<input type="file" name="fundo_login" accept="image/jpeg,image/png,image/webp" onchange="this.closest(\'form\').submit()" hidden>';
+      echo '</label></form>';
+      if ($url !== '') {
+         echo '<form method="post" action="' . $acao . '">' . $csrf;
+         echo '<input type="hidden" name="save_action" value="remover_fundo_login">';
+         echo '<button type="submit" class="logosdaempresa-fp-btn logosdaempresa-fp-btn-perigo" title="Remover imagem"><i class="ti ti-trash"></i></button>';
+         echo '</form>';
+      }
+      echo '</div></div>';
 
-      echo '<label class="logosdaempresa-btn-upload" id="logosdaempresa-video-botao"><i class="ti ti-movie"></i> '
-         . ($urlVideo !== '' ? 'Trocar vídeo' : 'Enviar vídeo MP4');
-      echo '<input type="file" id="logosdaempresa-video-arquivo" accept="video/mp4,.mp4" style="display:none"'
+      // Vídeo
+      echo '<div class="logosdaempresa-fp-arquivo">';
+      echo '<i class="ti ti-movie logosdaempresa-fp-arquivo-icone"></i>';
+      echo '<div class="logosdaempresa-fp-arquivo-info"><b>Vídeo MP4</b><span>'
+         . ($urlVideo !== '' ? 'Enviado · ' . $mb(self::caminhoVideoFundo()) : 'Nenhum enviado · até 100 MB') . '</span></div>';
+      echo '<div class="logosdaempresa-fp-arquivo-acoes">';
+      echo '<label class="logosdaempresa-fp-btn" id="logosdaempresa-video-botao"><i class="ti ti-upload"></i> ' . ($urlVideo !== '' ? 'Trocar' : 'Enviar');
+      echo '<input type="file" id="logosdaempresa-video-arquivo" accept="video/mp4,.mp4" hidden'
          . ' data-ajax="' . $e($ajax) . '" data-parte="' . self::tamanhoParteUpload() . '" data-maximo="' . self::VIDEO_MAX_BYTES . '"'
          . ' data-token="' . $e(self::tokenCsrf()) . '">';
       echo '</label>';
-
-      if ($url !== '') {
-         echo '<form method="post" action="' . $acao . '" style="margin:0">' . $csrf;
-         echo '<input type="hidden" name="save_action" value="remover_fundo_login">';
-         echo '<button type="submit" class="logosdaempresa-btn-restaurar"><i class="ti ti-trash"></i> Remover imagem</button>';
-         echo '</form>';
-      }
       if ($urlVideo !== '') {
-         echo '<form method="post" action="' . $acao . '" style="margin:0">' . $csrf;
+         echo '<form method="post" action="' . $acao . '">' . $csrf;
          echo '<input type="hidden" name="save_action" value="remover_video_fundo">';
-         echo '<button type="submit" class="logosdaempresa-btn-restaurar"><i class="ti ti-trash"></i> Remover vídeo</button>';
+         echo '<button type="submit" class="logosdaempresa-fp-btn logosdaempresa-fp-btn-perigo" title="Remover vídeo"><i class="ti ti-trash"></i></button>';
          echo '</form>';
       }
-      if ($url !== '' || $urlVideo !== '') {
-         echo '<form method="post" action="' . $acao . '" style="margin:0">' . $csrf;
-         echo '<input type="hidden" name="save_action" value="toggle_fundo_login">';
-         echo $ativo
-            ? '<button type="submit" class="logosdaempresa-btn-restaurar"><i class="ti ti-eye-off"></i> Desativar na tela de login</button>'
-            : '<button type="submit" class="logosdaempresa-btn-upload"><i class="ti ti-check"></i> Ativar na tela de login</button>';
-         echo '</form>';
-      }
-      echo '</div>';
+      echo '</div></div>';
 
       // Progresso do envio do vídeo
       echo '<div class="logosdaempresa-video-progresso" id="logosdaempresa-video-progresso" hidden>';
@@ -1546,18 +1551,35 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       echo '<div class="logosdaempresa-video-barra"><i id="logosdaempresa-video-barra"></i></div>';
       echo '</div>';
 
-      // Opções
-      echo '<form method="post" action="' . $acao . '" class="logosdaempresa-fundo-opcoes" id="logosdaempresa-fundo-opcoes">' . $csrf;
+      echo '</div>'; // arquivos
+
+      if ($url !== '' || $urlVideo !== '') {
+         echo '<form method="post" action="' . $acao . '" class="logosdaempresa-fp-ativar">' . $csrf;
+         echo '<input type="hidden" name="save_action" value="toggle_fundo_login">';
+         echo $ativo
+            ? '<button type="submit" class="logosdaempresa-fp-btn logosdaempresa-fp-btn-bloco"><i class="ti ti-eye-off"></i> Desativar na tela de login</button>'
+            : '<button type="submit" class="logosdaempresa-fp-btn logosdaempresa-fp-btn-bloco logosdaempresa-fp-btn-destaque"><i class="ti ti-check"></i> Ativar na tela de login</button>';
+         echo '</form>';
+      }
+
+      echo '</div>'; // lado
+
+      // ================= Coluna 2: opções =================
+      echo '<form method="post" action="' . $acao . '" class="logosdaempresa-fp-opcoes" id="logosdaempresa-fundo-opcoes">' . $csrf;
       echo '<input type="hidden" name="save_action" value="salvar_opcoes_fundo">';
 
-      echo '<div class="logosdaempresa-fundo-campo"><span>Tipo de fundo</span><div class="logosdaempresa-segmentos">';
+      echo '<div class="logosdaempresa-fp-campo">';
+      echo '<span class="logosdaempresa-fp-rotulo">Tipo de fundo</span>';
+      echo '<div class="logosdaempresa-segmentos">';
       foreach (['imagem' => 'ti ti-photo', 'video' => 'ti ti-movie'] as $valor => $icone) {
          echo '<label class="logosdaempresa-segmento"><input type="radio" name="fundo_login_tipo" value="' . $valor . '"'
             . ($opcoes['tipo'] === $valor ? ' checked' : '') . '><span><i class="' . $icone . '"></i> ' . self::FUNDO_TIPOS[$valor] . '</span></label>';
       }
       echo '</div></div>';
 
-      echo '<div class="logosdaempresa-fundo-campo"><span>Posição do formulário de login</span><div class="logosdaempresa-segmentos">';
+      echo '<div class="logosdaempresa-fp-campo">';
+      echo '<span class="logosdaempresa-fp-rotulo">Posição do formulário</span>';
+      echo '<div class="logosdaempresa-segmentos">';
       $icones = ['esquerda' => 'ti ti-layout-sidebar', 'centro' => 'ti ti-layout-align-center', 'direita' => 'ti ti-layout-sidebar-right'];
       foreach (['esquerda', 'centro', 'direita'] as $valor) {
          echo '<label class="logosdaempresa-segmento"><input type="radio" name="fundo_login_posicao" value="' . $valor . '"'
@@ -1565,46 +1587,56 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
       }
       echo '</div></div>';
 
-      echo '<label>Exibição<select name="fundo_login_modo" class="form-select form-select-sm">';
+      echo '<div class="logosdaempresa-fp-campo">';
+      echo '<label class="logosdaempresa-fp-rotulo" for="logosdaempresa-fp-modo">Exibição</label>';
+      echo '<select name="fundo_login_modo" id="logosdaempresa-fp-modo" class="form-select form-select-sm">';
       foreach (self::FUNDO_MODOS as $valor => $rotulo) {
          echo '<option value="' . $valor . '"' . ($opcoes['modo'] === $valor ? ' selected' : '') . '>' . $rotulo . '</option>';
       }
-      echo '</select></label>';
+      echo '</select></div>';
 
-      echo '<label>Estilo<select name="fundo_login_estilo" class="form-select form-select-sm">';
+      echo '<div class="logosdaempresa-fp-campo">';
+      echo '<label class="logosdaempresa-fp-rotulo" for="logosdaempresa-fp-estilo">Estilo do formulário</label>';
+      echo '<select name="fundo_login_estilo" id="logosdaempresa-fp-estilo" class="form-select form-select-sm">';
       foreach (self::FUNDO_ESTILOS as $valor => $rotulo) {
          echo '<option value="' . $valor . '"' . ($opcoes['estilo'] === $valor ? ' selected' : '') . '>' . $rotulo . '</option>';
       }
-      echo '</select></label>';
+      echo '</select></div>';
 
-      echo '<label>Escurecer o fundo: <span class="logosdaempresa-fundo-valor" data-sufixo="%">' . $opcoes['escurecer'] . '%</span>';
-      echo '<input type="range" name="fundo_login_escurecer" min="0" max="70" step="5" value="' . $opcoes['escurecer'] . '" class="form-range">';
-      echo '</label>';
+      $faixa = function (string $nome, string $rotulo, int $min, int $max, int $valor, string $sufixo) {
+         echo '<div class="logosdaempresa-fp-campo">';
+         echo '<div class="logosdaempresa-fp-rotulo-linha"><label class="logosdaempresa-fp-rotulo" for="logosdaempresa-fp-' . $nome . '">' . $rotulo . '</label>';
+         echo '<span class="logosdaempresa-fp-valor" data-sufixo="' . $sufixo . '">' . $valor . $sufixo . '</span></div>';
+         echo '<input type="range" name="' . $nome . '" id="logosdaempresa-fp-' . $nome . '" min="' . $min . '" max="' . $max . '" step="5" value="' . $valor . '" class="form-range">';
+         echo '</div>';
+      };
+
+      $faixa('fundo_login_escurecer', 'Escurecer o fundo', 0, 70, $opcoes['escurecer'], '%');
 
       // Só no modo caixa
-      echo '<div class="logosdaempresa-fundo-so-area"' . ($opcoes['modo'] === 'caixa' ? '' : ' hidden') . '>';
-      echo '<label>Largura da caixa: <span class="logosdaempresa-fundo-valor" data-sufixo="% da tela">' . $opcoes['largura'] . '% da tela</span>';
-      echo '<input type="range" name="fundo_login_caixa_largura" min="50" max="95" step="5" value="' . $opcoes['largura'] . '" class="form-range">';
-      echo '</label>';
-      echo '<label>Altura da caixa: <span class="logosdaempresa-fundo-valor" data-sufixo="% da tela">' . $opcoes['altura'] . '% da tela</span>';
-      echo '<input type="range" name="fundo_login_caixa_altura" min="50" max="90" step="5" value="' . $opcoes['altura'] . '" class="form-range">';
-      echo '</label>';
-      echo '<label class="logosdaempresa-fundo-check form-check form-switch">';
+      echo '<div class="logosdaempresa-fp-caixa"' . ($opcoes['modo'] === 'caixa' ? '' : ' hidden') . ' id="logosdaempresa-fp-caixa">';
+      echo '<div class="logosdaempresa-fp-caixa-titulo"><i class="ti ti-box-model"></i> Tamanho da caixa</div>';
+      $faixa('fundo_login_caixa_largura', 'Largura', 50, 95, $opcoes['largura'], '% da tela');
+      $faixa('fundo_login_caixa_altura', 'Altura', 50, 90, $opcoes['altura'], '% da tela');
+      echo '<label class="form-check form-switch logosdaempresa-fp-switch">';
       echo '<input type="checkbox" class="form-check-input" name="fundo_login_caixa_cantos" value="1"' . ($opcoes['cantos'] ? ' checked' : '') . '>';
       echo '<span class="form-check-label">Cantos arredondados</span>';
       echo '</label>';
       echo '</div>';
-      echo '<button type="submit" class="logosdaempresa-btn-upload" id="logosdaempresa-fundo-salvar"><i class="ti ti-device-floppy"></i> <span>Salvar opções</span></button>';
+
+      echo '<div class="logosdaempresa-fp-rodape">';
+      echo '<span class="logosdaempresa-fp-pendente" id="logosdaempresa-fp-pendente" hidden><i class="ti ti-alert-circle"></i> Alterações não salvas</span>';
+      echo '<button type="submit" class="logosdaempresa-fp-salvar" id="logosdaempresa-fundo-salvar"><i class="ti ti-device-floppy"></i> Salvar opções</button>';
+      echo '</div>';
+
       echo '</form>';
 
-      echo '</div>'; // controles
-      echo '</div>'; // fundo
+      echo '</div>'; // fp
 
       echo '<div class="logosdaempresa-fundo-info"><i class="ti ti-info-circle"></i> ';
-      echo 'Tela inteira: o fundo cobre a tela e o formulário fica por cima, no lado escolhido. Caixa: o fundo fica numa caixa centralizada (como um modal) e o login numa segunda caixa dentro dela. ';
-      echo 'Imagem: JPG, PNG ou WebP (recomendado 1920 x 1080 px; maiores que 2560 x 1600 são reduzidas). ';
-      echo 'Vídeo: MP4 (H.264) até 100 MB, sem som e em loop; a imagem, se enviada, aparece enquanto o vídeo carrega. Os arquivos ficam em files/_plugins/logosdaempresa. ';
-      echo 'Ativar o fundo desativa o "Layout lateral com imagem" (e vice-versa). No celular o formulário ocupa a largura toda.';
+      echo 'Tela inteira: o fundo cobre a tela e o formulário fica por cima, no lado escolhido. Caixa: o fundo fica numa caixa centralizada (como um modal) com o login dentro dela. ';
+      echo 'Imagem: JPG, PNG ou WebP (recomendado 1920 x 1080 px). Vídeo: MP4 (H.264) até 100 MB, sem som e em loop; a imagem, se enviada, aparece enquanto o vídeo carrega. ';
+      echo 'Ativar o fundo desativa o "Layout lateral com imagem". No celular o formulário ocupa a largura toda.';
       echo '</div>';
 
       echo '</div>';
@@ -1665,7 +1697,7 @@ class PluginLogosdaempresaConfig extends CommonDBTM {
    function showConfigPage(): void {
       global $CFG_GLPI;
 
-      $cssUrl = $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/css/logosdaempresa.css';
+      $cssUrl = $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/css/logosdaempresa.css?v=' . PLUGIN_LOGOSDAEMPRESA_VERSION;
       echo '<link rel="stylesheet" href="' . $cssUrl . '">';
       echo '<script src="' . $CFG_GLPI['root_doc'] . '/plugins/logosdaempresa/js/fundo.js?v=' . PLUGIN_LOGOSDAEMPRESA_VERSION . '" defer></script>';
 
